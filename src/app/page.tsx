@@ -22,27 +22,27 @@ export default function Home() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1 }}
-            className="flex items-center justify-center space-x-3 mb-6"
+            className="flex flex-row items-center justify-center space-x-2 sm:space-x-3 mb-6 w-full"
           >
-            <span className="h-px w-12 bg-spice-500/50"></span>
-            <span className="uppercase tracking-[0.3em] text-spice-400 text-xs font-bold">100% Native Indian Spices</span>
-            <span className="h-px w-12 bg-spice-500/50"></span>
+            <span className="hidden sm:block h-px w-6 sm:w-12 bg-spice-500/50"></span>
+            <span className="uppercase tracking-widest sm:tracking-[0.3em] text-spice-400 text-[10px] sm:text-xs font-bold text-center break-words max-w-full">100% Native Indian Spices</span>
+            <span className="hidden sm:block h-px w-6 sm:w-12 bg-spice-500/50"></span>
           </motion.div>
 
           <motion.h1 
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-6xl sm:text-8xl md:text-9xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-white/40 font-[family-name:var(--font-outfit)] leading-[0.9]"
+            className="text-5xl sm:text-8xl md:text-9xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-white/40 font-[family-name:var(--font-outfit)] leading-[1.1] sm:leading-[0.9]"
           >
-            Taste The <br /> <span className="text-spice-500 bg-none text-transparent bg-clip-text bg-gradient-to-br from-spice-400 to-spice-700 pb-2 drop-shadow-lg">Heritage.</span>
+            Taste The <br className="sm:hidden" /> <span className="text-spice-500 bg-none text-transparent bg-clip-text bg-gradient-to-br from-spice-400 to-spice-700 pb-2 drop-shadow-lg">Heritage.</span>
           </motion.h1>
 
           <motion.p 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1, delay: 0.6 }}
-            className="text-xl sm:text-2xl text-gray-400 max-w-2xl mx-auto font-light leading-relaxed mt-8"
+            className="text-lg sm:text-2xl text-gray-400 max-w-2xl mx-auto font-light leading-relaxed mt-6 sm:mt-8 px-2 sm:px-0"
           >
             We bypass middlemen to bring pure, unadulterated essence directly from the rich soils of India to your kitchen.
           </motion.p>
