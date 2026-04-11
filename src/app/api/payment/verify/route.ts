@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
         } else {
           // Payment Failed or Abandoned (ACTIVE, FAILED, etc)
           order.paymentStatus = 'Failed';
+          order.orderStatus = 'Cancelled'; // Mark strictly as cancelled so UI updates!
           await order.save();
 
           // Restore Product Stock since the payment didn't go through

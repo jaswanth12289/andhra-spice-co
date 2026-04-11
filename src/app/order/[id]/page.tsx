@@ -52,10 +52,12 @@ export default function OrderSuccessPage({ params }: { params: Promise<{ id: str
             <CheckCircle className="w-20 h-20 text-green-500 mx-auto mb-4" />
           )}
           <h1 className="text-4xl font-bold font-outfit text-spice-900 dark:text-spice-100">
-            {order.orderStatus === 'Cancelled' ? 'Order Cancelled' : 'Order Placed Successfully!'}
+            {order.orderStatus === 'Cancelled' 
+              ? (order.paymentStatus === 'Failed' ? 'Payment Failed' : 'Order Cancelled') 
+              : 'Order Placed Successfully!'}
           </h1>
           <p className="mt-4 text-xl">Order ID: <span className="font-bold font-mono bg-spice-100 dark:bg-black px-4 py-2 rounded-lg">{order.customOrderId}</span></p>
-          <p className="mt-2 text-spice-600 dark:text-spice-400">Total: ₹{order.totalAmount} &bull; Payment Mode: {order.paymentMethod}</p>
+          <p className="mt-2 text-spice-600 dark:text-spice-400">Total: ₹{order.totalAmount} &bull; Payment Mode: {order.paymentMethod} &bull; Status: {order.paymentStatus}</p>
         </div>
 
         <div className="mb-10 text-center">
@@ -72,7 +74,7 @@ export default function OrderSuccessPage({ params }: { params: Promise<{ id: str
             </div>
           ) : order.orderStatus === 'Cancelled' ? (
             <div className="text-red-500 flex justify-center items-center space-x-2">
-              <span>This order has been cancelled and stock is restored.</span>
+              <span>{order.paymentStatus === 'Failed' ? 'Your online payment failed or was abandoned. The order has been automatically cancelled and stock has been restored.' : 'This order has been safely cancelled and stock is restored.'}</span>
             </div>
           ) : (
              <div className="text-spice-500 flex justify-center items-center space-x-2">
