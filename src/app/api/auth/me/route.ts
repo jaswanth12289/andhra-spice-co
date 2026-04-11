@@ -19,7 +19,8 @@ export async function GET(req: Request) {
       id: dbUser._id, 
       name: dbUser.name, 
       role: dbUser.role, 
-      email: dbUser.email 
+      email: dbUser.email,
+      phoneNumber: dbUser.phoneNumber
     } 
   });
 }

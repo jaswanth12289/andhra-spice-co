@@ -13,6 +13,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   
   const [phone, setPhone] = useState('');
+  const [useRegisteredPhone, setUseRegisteredPhone] = useState(true);
   const [address, setAddress] = useState({ street: '', city: '', state: '', zipCode: '' });
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'ONLINE'>('COD');
   const [loading, setLoading] = useState(false);
@@ -21,8 +22,10 @@ export default function CheckoutPage() {
     if (!authLoading && !user) {
       toast.error('Please login to checkout');
       router.push('/login');
+    } else if (user && user.phoneNumber && useRegisteredPhone && !phone) {
+      setPhone(user.phoneNumber);
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, useRegisteredPhone]);
 
   if (authLoading || !user || items.length === 0) return (
     <div className="flex justify-center items-center h-screen font-bold text-xl">Loading...</div>
@@ -83,18 +86,41 @@ export default function CheckoutPage() {
   return (
     <>
       <Script src="https://sdk.cashfree.com/js/v3/cashfree.js" strategy="lazyOnload" />
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <h1 className="text-4xl font-bold font-outfit mb-8">Checkout</h1>
-        <form onSubmit={handleCheckout} className="grid grid-cols-1 md:grid-cols-2 gap-12">
+      <div className="max-w-4xl mx-auto px-4 pt-32 pb-12">
+        <h1 className="text-4xl font-bold font-outfit mb-8 relative z-10">Checkout</h1>
+        <form onSubmit={handleCheckout} className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
           <div className="space-y-6">
             <div className="bg-white dark:bg-spice-900 p-6 rounded-2xl shadow-sm border border-spice-200">
               <h2 className="text-2xl font-bold font-outfit mb-4 border-b pb-2">Delivery Details</h2>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-bold mb-1">Phone Number (10 digits)</label>
+                  {user?.phoneNumber && (
+                    <label className="flex items-center space-x-2 text-sm mb-3 mt-1 cursor-pointer text-spice-400 font-medium">
+                      <input 
+                        type="checkbox" 
+                        checked={useRegisteredPhone} 
+                        onChange={(e) => {
+                          setUseRegisteredPhone(e.target.checked);
+                          if (e.target.checked) {
+                            setPhone(user.phoneNumber as string);
+                          } else {
+                            setPhone('');
+                          }
+                        }} 
+                        className="w-4 h-4 text-spice-600 focus:ring-spice-600 rounded bg-white/10 border-spice-500" 
+                      />
+                      <span>Use my registered mobile ({user.phoneNumber})</span>
+                    </label>
+                  )}
                   <input 
                     type="text" required maxLength={10} minLength={10}
-                    value={phone} onChange={e => setPhone(e.target.value)}
+                    value={phone} onChange={e => {
+                      setPhone(e.target.value);
+                      if (useRegisteredPhone && user?.phoneNumber && e.target.value !== user.phoneNumber) {
+                        setUseRegisteredPhone(false);
+                      }
+                    }}
                     className="w-full p-3 border border-spice-300 rounded outline-none focus:ring-2 focus:ring-spice-600 dark:bg-black dark:text-white dark:border-spice-700" 
                     placeholder="e.g. 9876543210"
                   />
