@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuthStore } from '@/store/useAuthStore';
+import { useCartStore } from '@/store/useCartStore';
 import { useRouter } from 'next/navigation';
 import { LogOut, User as UserIcon, Mail, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';

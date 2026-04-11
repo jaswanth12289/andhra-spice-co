@@ -66,6 +66,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // Normal update for shipping/tracking etc
     const updatedOrder = await Order.findByIdAndUpdate(id, data, { new: true });
+    
+    if (!updatedOrder) return NextResponse.json({ error: 'Failed to update order' }, { status: 500 });
 
     if (data.orderStatus === 'Shipped' || data.trackingId) {
       const user = await User.findById(updatedOrder.userId);
