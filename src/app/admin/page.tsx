@@ -66,25 +66,25 @@ export default function AdminOverview() {
         <span className="px-3 py-1 bg-red-500/20 border border-red-500/50 text-red-500 rounded-full text-xs font-bold">{lowStockProducts.length} Needs Attention</span>
       </div>
       
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden relative">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-x-auto relative mt-2">
         {lowStockProducts.length === 0 ? (
            <div className="p-16 text-center text-green-400 font-bold text-sm tracking-widest uppercase">All inventory is optimally stocked.</div>
         ) : (
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[500px]">
             <thead className="bg-[#111] text-gray-400 uppercase tracking-widest text-xs">
               <tr>
-                <th className="p-6 font-semibold py-4 border-b border-white/10">Entity Name</th>
-                <th className="p-6 font-semibold py-4 border-b border-white/10">Class</th>
-                <th className="p-6 font-semibold py-4 border-b border-white/10">Reserve Count</th>
+                <th className="p-4 sm:p-6 font-semibold py-4 border-b border-white/10 whitespace-nowrap">Entity Name</th>
+                <th className="p-4 sm:p-6 font-semibold py-4 border-b border-white/10">Class</th>
+                <th className="p-4 sm:p-6 font-semibold py-4 border-b border-white/10 text-right">Reserve Count</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {lowStockProducts.map(p => (
                 <tr key={p._id} className="hover:bg-white/5 transition-colors">
-                  <td className="p-6 font-bold text-white text-lg">{p.name}</td>
-                  <td className="p-6 opacity-70 text-sm tracking-widest uppercase text-white">{p.category}</td>
-                  <td className="p-6">
-                    <span className="text-red-500 font-bold text-2xl drop-shadow-[0_0_10px_rgba(239,68,68,0.4)]">{p.stock}</span>
+                  <td className="p-4 sm:p-6 font-bold text-white text-base sm:text-lg whitespace-nowrap">{p.name}</td>
+                  <td className="p-4 sm:p-6 opacity-70 text-xs sm:text-sm tracking-widest uppercase text-white">{p.category}</td>
+                  <td className="p-4 sm:p-6 text-right">
+                    <span className="text-red-500 font-bold text-xl sm:text-2xl drop-shadow-[0_0_10px_rgba(239,68,68,0.4)]">{p.stock}</span>
                   </td>
                 </tr>
               ))}
