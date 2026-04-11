@@ -61,7 +61,7 @@ export default function MyOrdersPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-16 min-h-[80vh]">
+    <div className="max-w-5xl mx-auto px-4 pt-28 pb-16 min-h-[80vh]">
       <h1 className="text-4xl font-bold font-outfit mb-2">My Orders</h1>
       <p className="text-gray-500 mb-10 border-b border-spice-200 dark:border-spice-800 pb-4">Track and review your previous acquisitions.</p>
 
@@ -74,7 +74,7 @@ export default function MyOrdersPage() {
       ) : (
         <div className="space-y-8">
           {orders.map(order => (
-            <div key={order._id} className="bg-white dark:bg-black border border-spice-200 dark:border-spice-800 rounded-2xl p-6 shadow-sm">
+            <div key={order.id || order.customOrderId} className="bg-white dark:bg-black border border-spice-200 dark:border-spice-800 rounded-2xl p-6 shadow-sm">
               <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 pb-6 border-b border-spice-100 dark:border-spice-900">
                 <div>
                   <span className="text-xs font-bold text-spice-500 uppercase tracking-widest">{new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric'})}</span>
@@ -131,7 +131,7 @@ export default function MyOrdersPage() {
                     
                     {isCancellable(order) && (
                       <button 
-                        onClick={() => handleCancel(order._id)}
+                        onClick={() => handleCancel(order.customOrderId || order.id)}
                         className="w-full bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/10 dark:hover:bg-red-900/20 dark:text-red-500 py-2 rounded-lg font-bold transition text-sm flex items-center justify-center"
                       >
                         Cancel Order <span className="ml-1 opacity-60 text-xs font-normal">(available for 24h)</span>
