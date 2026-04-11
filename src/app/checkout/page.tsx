@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import Script from 'next/script';
 
 export default function CheckoutPage() {
-  const { items, getTotal, clearCart } = useCartStore();
+  const { items, getTotal, clearCart, getFinalTotal, getDeliveryCharge } = useCartStore();
   const { user, loading: authLoading } = useAuthStore();
   const router = useRouter();
   
@@ -44,8 +44,8 @@ export default function CheckoutPage() {
         phoneNumber: phone,
         shippingAddress: address,
         products: items.map(i => ({ productId: i.productId, quantity: i.quantity, price: i.price, name: i.name, weight: i.weight })),
-        totalAmount: useCartStore.getState().getFinalTotal(),
-        deliveryCharge: useCartStore.getState().getDeliveryCharge(),
+        totalAmount: getFinalTotal(),
+        deliveryCharge: getDeliveryCharge(),
         paymentMethod
       };
 
@@ -186,18 +186,18 @@ export default function CheckoutPage() {
                 <span className="font-bold">₹{item.price * item.quantity}</span>
               </div>
             ))}
-            {useCartStore.getState().getDeliveryCharge() > 0 && (
+            {getDeliveryCharge() > 0 && (
               <div className="flex justify-between mb-4 text-spice-600 font-medium">
                 <span className="opacity-80">Delivery Charge</span>
-                <span>₹{useCartStore.getState().getDeliveryCharge()}</span>
+                <span>₹{getDeliveryCharge()}</span>
               </div>
             )}
             <div className="flex justify-between mb-8 mt-6 text-3xl font-bold border-t border-spice-200 pt-6">
               <span>Total</span>
-              <span className="text-spice-600 dark:text-spice-400">₹{useCartStore.getState().getFinalTotal()}</span>
+              <span className="text-spice-600 dark:text-spice-400">₹{getFinalTotal()}</span>
             </div>
             <button type="submit" disabled={loading} className="w-full bg-spice-600 hover:bg-spice-700 text-white py-4 rounded-xl font-bold text-xl shadow-lg transition">
-              {loading ? 'Processing...' : `Pay ₹${useCartStore.getState().getFinalTotal()}`}
+              {loading ? 'Processing...' : `Pay ₹${getFinalTotal()}`}
             </button>
           </div>
         </form>
