@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingCart, User as UserIcon, LogOut } from 'lucide-react';
+import { ShoppingCart, User as UserIcon, LogOut, Store } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -49,7 +49,12 @@ export default function Navbar() {
           )}
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1 sm:space-x-2">
+          {/* Mobile Collection Nav */}
+          <Link href="/products" className="md:hidden relative group p-2 hover:bg-white/10 rounded-full transition cursor-pointer">
+            <Store className="w-5 h-5 text-gray-300 group-hover:text-white" />
+          </Link>
+
           <Link href="/cart" className="relative group p-2 hover:bg-white/10 rounded-full transition cursor-pointer">
             <ShoppingCart className="w-5 h-5 text-gray-300 group-hover:text-white" />
             {mounted && cartCount > 0 && (
