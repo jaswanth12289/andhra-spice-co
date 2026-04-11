@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { db } from '@/lib/firestore';
-import { collection, getDocs, addDoc, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,22 +9,19 @@ export async function GET(req: NextRequest) {
     const search = req.nextUrl.searchParams.get('search');
 
     const productsRef = collection(db, 'products');
-    let q;
-    
+    const snapshot = await getDocs(productsRef);
+    let products = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
     if (category) {
-      q = query(productsRef, where('category', '==', category), orderBy('createdAt', 'desc'));
-    } else {
-      q = query(productsRef, orderBy('createdAt', 'desc'));
+      products = products.filter((p: any) => p.category === category);
     }
 
-    const snapshot = await getDocs(q);
-    let products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    // Client-side search filter (Firestore doesn't support regex)
     if (search) {
       const searchLower = search.toLowerCase();
       products = products.filter((p: any) => p.name?.toLowerCase().includes(searchLower));
     }
+
+    products.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
     return NextResponse.json(products);
   } catch (error: any) {

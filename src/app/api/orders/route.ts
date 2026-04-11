@@ -138,16 +138,16 @@ export async function GET(req: NextRequest) {
     const payload = await verifyToken(token) as any;
     
     const ordersRef = collection(db, 'orders');
-    let q;
-    
-    if (payload.role === 'admin') {
-      q = query(ordersRef, orderBy('createdAt', 'desc'));
-    } else {
-      q = query(ordersRef, where('userId', '==', payload.userId), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(ordersRef);
+    let orders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Filter by user if not admin
+    if (payload.role !== 'admin') {
+      orders = orders.filter((o: any) => o.userId === payload.userId);
     }
 
-    const snapshot = await getDocs(q);
-    const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // Sort by createdAt descending
+    orders.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
     return NextResponse.json(orders);
   } catch (error: any) {
