@@ -32,11 +32,11 @@ export default function Navbar() {
 
 
   return (
-    <div className="fixed top-0 inset-x-0 z-50 flex justify-center mt-4 px-4 pointer-events-none">
-      <nav className={`pointer-events-auto transition-all duration-300 ${scrolled ? 'w-full max-w-5xl rounded-full bg-black/40 border-white/10 backdrop-blur-2xl py-3 px-6 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'w-full max-w-7xl rounded-2xl bg-transparent border-transparent py-4 px-2'} border flex justify-between items-center`}>
+    <div className="fixed top-0 inset-x-0 z-50 flex justify-center mt-3 sm:mt-4 px-3 sm:px-4 pointer-events-none">
+      <nav className={`pointer-events-auto transition-all duration-300 ${scrolled ? 'w-full max-w-5xl rounded-full bg-black/40 border-white/10 backdrop-blur-2xl py-3 px-5 sm:px-6 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'w-full max-w-7xl rounded-2xl bg-transparent border-transparent py-3 sm:py-4 px-2'} border flex justify-between items-center`}>
         <div className="flex items-center">
-          <Link href="/" className="font-bold text-2xl tracking-tighter text-white font-[family-name:var(--font-outfit)] flex flex-col uppercase leading-none">
-            <span className="text-spice-500 tracking-[0.2em] text-xs font-semibold mb-1">Authentic</span>
+          <Link href="/" className="font-bold text-xl sm:text-2xl tracking-tighter text-white font-[family-name:var(--font-outfit)] flex flex-col uppercase leading-none">
+            <span className="text-spice-500 tracking-[0.2em] text-[10px] sm:text-xs font-semibold mb-1">Authentic</span>
             Andhra Spice
           </Link>
         </div>
