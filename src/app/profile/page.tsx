@@ -34,39 +34,39 @@ export default function ProfilePage() {
           My Profile
         </h1>
 
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 sm:p-8 md:p-12 shadow-2xl relative overflow-hidden">
           {/* Decorative glowing orb */}
           <div className="absolute -right-20 -top-20 w-64 h-64 bg-spice-500/10 blur-3xl rounded-full pointer-events-none"></div>
           
-          <div className="space-y-8 relative z-10">
+          <div className="space-y-6 sm:space-y-8 relative z-10 w-full">
             {/* Name */}
-            <div className="flex items-start space-x-4">
-              <div className="p-3 bg-white/10 rounded-2xl">
-                <UserIcon className="w-6 h-6 text-spice-400" />
+            <div className="flex items-start space-x-3 sm:space-x-4">
+              <div className="p-3 bg-white/10 rounded-2xl shrink-0">
+                <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 text-spice-400" />
               </div>
-              <div>
-                <p className="text-sm font-bold uppercase tracking-widest text-gray-500 mb-1">Full Name</p>
-                <p className="text-2xl font-semibold text-white">{user.name || 'N/A'}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-gray-500 mb-1">Full Name</p>
+                <p className="text-xl sm:text-2xl font-semibold text-white truncate">{user.name || 'N/A'}</p>
               </div>
             </div>
 
             {/* Email */}
-            <div className="flex items-start space-x-4 pb-6 border-b border-white/10">
-              <div className="p-3 bg-white/10 rounded-2xl">
-                <Mail className="w-6 h-6 text-spice-400" />
+            <div className="flex items-start space-x-3 sm:space-x-4 pb-6 border-b border-white/10 w-full">
+              <div className="p-3 bg-white/10 rounded-2xl shrink-0">
+                <Mail className="w-5 h-5 sm:w-6 sm:h-6 text-spice-400" />
               </div>
-              <div>
-                <p className="text-sm font-bold uppercase tracking-widest text-gray-500 mb-1">Email Address</p>
-                <p className="text-xl text-gray-300">{user.email}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-gray-500 mb-1">Email Address</p>
+                <p className="text-base sm:text-xl text-gray-300 break-all">{user.email}</p>
               </div>
             </div>
 
             {/* Orders Link */}
             <div className="flex flex-col space-y-4 pb-6 border-b border-white/10">
               <div>
-                <p className="text-sm font-bold uppercase tracking-widest text-gray-500 mb-1">Order History</p>
-                <p className="text-gray-400 text-sm mb-3">Track your past acquisitions and live shipping status.</p>
-                <Link href="/orders" className="inline-block px-8 py-3 bg-white text-black rounded-xl font-bold uppercase tracking-widest hover:bg-gray-200 transition shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+                <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-gray-500 mb-1">Order History</p>
+                <p className="text-gray-400 text-xs sm:text-sm mb-4">Track your past acquisitions and live shipping status.</p>
+                <Link href="/orders" className="block w-full sm:w-auto text-center px-6 sm:px-8 py-3 sm:py-3 bg-white text-black rounded-xl text-xs sm:text-sm font-bold uppercase tracking-widest hover:bg-gray-200 transition shadow-[0_0_15px_rgba(255,255,255,0.1)]">
                   View My Orders
                 </Link>
               </div>
