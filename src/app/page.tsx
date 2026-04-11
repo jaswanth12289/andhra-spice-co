@@ -37,7 +37,7 @@ export default function Home() {
           >
             <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-white/40">Taste The</span> 
             <br /> 
-            <span className="text-transparent bg-clip-text bg-gradient-to-br from-spice-400 to-spice-700 pb-2">Heritage.</span>
+            <span className="text-spice-500 drop-shadow-lg inline-block pt-2">Heritage.</span>
           </motion.h1>
 
           <motion.p 
