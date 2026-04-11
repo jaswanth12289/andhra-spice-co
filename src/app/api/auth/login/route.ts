@@ -6,7 +6,7 @@ import { collection, query, where, getDocs, addDoc, doc, setDoc } from 'firebase
 const FIREBASE_API_KEY = 'AIzaSyDPqnVzbrdcx-ISu0mWcyLNkq5FvbW8sCQ';
 
 // Admin email - first login from this email gets admin role
-const ADMIN_EMAIL = '2300031385ird@gmail.com';
+const ADMIN_EMAILS = ['2300031385ird@gmail.com', 'jaswanthsatuluri@gmail.com'];
 
 const rateLimitMap = new Map<string, { count: number; timestamp: number }>();
 
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
 
     if (snapshot.empty) {
       // Auto-assign admin role if the email matches
-      const role = email === ADMIN_EMAIL ? 'admin' : 'user';
+      const role = ADMIN_EMAILS.includes(email) ? 'admin' : 'user';
       
       const newUser = {
         name: displayName,
