@@ -65,7 +65,7 @@ export default function Home() {
 
       {/* Bento Box Features */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full mt-20">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[300px]">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[minmax(300px,auto)]">
           
           <motion.div 
             initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}

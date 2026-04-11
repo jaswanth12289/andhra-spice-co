@@ -57,8 +57,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="min-h-screen bg-[#050505] text-white selection:bg-spice-500 selection:text-white">
-      <Link href="/products" className="absolute top-28 left-8 sm:left-12 z-50 flex items-center space-x-2 text-gray-400 hover:text-white transition-colors uppercase tracking-widest text-xs font-bold drop-shadow-md bg-black/40 px-4 py-2 rounded-full backdrop-blur-md border border-white/10">
-        <ArrowLeft className="w-4 h-4"/> <span>Back to Collection</span>
+      <Link href="/products" className="absolute top-6 sm:top-28 left-4 java sm:left-12 z-50 flex items-center space-x-2 text-gray-400 hover:text-white transition-colors uppercase tracking-widest text-[10px] sm:text-xs font-bold drop-shadow-md bg-black/60 px-4 py-2 mt-20 sm:mt-0 rounded-full backdrop-blur-md border border-white/10">
+        <ArrowLeft className="w-4 h-4"/> <span>Back</span>
       </Link>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen">
@@ -74,12 +74,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Right Side: Data */}
-        <div className="p-8 sm:p-16 lg:p-24 flex flex-col justify-center relative z-20 -mt-20 lg:mt-0">
+        <div className="p-6 sm:p-16 lg:p-24 flex flex-col justify-center relative z-20 -mt-10 lg:mt-0 bg-[#050505] lg:bg-transparent rounded-t-3xl pt-10">
           <div className="max-w-xl">
-            <span className="text-spice-500 uppercase tracking-[0.3em] font-bold text-xs mb-4 flex items-center">{product.category}</span>
-            <h1 className="text-5xl sm:text-7xl font-bold font-[family-name:var(--font-outfit)] leading-none mb-6">{product.name}</h1>
+            <span className="text-spice-500 uppercase tracking-[0.3em] font-bold text-[10px] sm:text-xs mb-4 flex items-center">{product.category}</span>
+            <h1 className="text-4xl sm:text-6xl font-bold font-[family-name:var(--font-outfit)] leading-none mb-6">{product.name}</h1>
             
-            <div className="text-4xl font-light text-white mb-10 tracking-tight">₹{activeOption.price}</div>
+            <div className="text-3xl sm:text-4xl font-light text-white mb-8 tracking-tight">₹{activeOption.price}</div>
             
             <div className="h-px w-full bg-white/10 mb-8"></div>
             
@@ -90,13 +90,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             {/* Weight Selectors */}
             {product.options && product.options.length > 0 && (
               <div className="mb-10">
-                <p className="text-xs text-spice-400 tracking-widest uppercase font-bold mb-4">Select Specification</p>
-                <div className="flex flex-wrap gap-3">
+                <p className="text-[10px] sm:text-xs text-spice-400 tracking-widest uppercase font-bold mb-3">Select Specification</p>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
                   {product.options.map((opt: any) => (
                     <button
                       key={opt.weight}
                       onClick={() => { setSelectedWeight(opt.weight); setQuantity(1); }}
-                      className={`px-6 py-3 rounded-full font-bold text-sm tracking-widest uppercase transition-all duration-300 border ${
+                      className={`px-5 py-2 sm:px-6 sm:py-3 rounded-full font-bold text-xs sm:text-sm tracking-widest uppercase transition-all duration-300 border ${
                         selectedWeight === opt.weight 
                           ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.4)]' 
                           : 'bg-transparent text-gray-400 border-white/20 hover:border-white/50 hover:text-white'
@@ -110,25 +110,25 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             )}
 
             {activeOption.stock > 0 ? (
-              <div className="space-y-8">
-                <p className="text-xs text-spice-400 tracking-widest uppercase font-bold">In Vault: <span className="text-white">{activeOption.stock}</span></p>
+              <div className="space-y-6 sm:space-y-8 mt-2">
+                <p className="text-[10px] sm:text-xs text-spice-400 tracking-widest uppercase font-bold">In Vault: <span className="text-white">{activeOption.stock}</span></p>
                 
-                <div className="flex flex-col sm:flex-row items-center gap-6">
+                <div className="flex flex-row items-center gap-3 sm:gap-6">
                   {/* Glass Quantity Adjuster */}
-                  <div className="flex items-center bg-white/5 border border-white/10 rounded-full h-16 w-full sm:w-auto px-2 shadow-inner">
-                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-12 h-12 flex items-center justify-center text-xl hover:bg-white/10 rounded-full transition-colors">-</button>
-                    <span className="w-12 text-center text-xl font-light">{quantity}</span>
-                    <button onClick={() => setQuantity(Math.min(availableToAdd, quantity + 1))} className="w-12 h-12 flex items-center justify-center text-xl hover:bg-white/10 rounded-full transition-colors">+</button>
+                  <div className="flex items-center bg-white/5 border border-white/10 rounded-full h-14 sm:h-16 w-auto px-1 sm:px-2 shadow-inner">
+                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 sm:w-12 h-10 sm:h-12 flex items-center justify-center text-xl hover:bg-white/10 rounded-full transition-colors">-</button>
+                    <span className="w-8 sm:w-12 text-center text-lg sm:text-xl font-light">{quantity}</span>
+                    <button onClick={() => setQuantity(Math.min(availableToAdd, quantity + 1))} className="w-10 sm:w-12 h-10 sm:h-12 flex items-center justify-center text-xl hover:bg-white/10 rounded-full transition-colors">+</button>
                   </div>
                   
                   {/* Premium Add to cart */}
                   <button 
                     onClick={handleAddToCart}
                     disabled={availableToAdd === 0}
-                    className="h-16 flex-1 w-full bg-white hover:bg-gray-200 disabled:bg-white/10 disabled:text-white/30 text-black rounded-full font-bold text-lg flex justify-center items-center gap-3 transition-all duration-300 shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
+                    className="h-14 sm:h-16 flex-1 bg-white hover:bg-gray-200 disabled:bg-white/10 disabled:text-white/30 text-black rounded-full font-bold flex justify-center items-center gap-2 sm:gap-3 transition-all duration-300 shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
                   >
-                    <ShoppingCart className="w-5 h-5" />
-                    <span className="uppercase tracking-widest text-sm">{availableToAdd === 0 ? 'Limit Reached' : 'Add to Collection'}</span>
+                    <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="uppercase tracking-widest text-[10px] sm:text-sm">{availableToAdd === 0 ? 'Limit Reached' : 'Add to Collection'}</span>
                   </button>
                 </div>
               </div>
