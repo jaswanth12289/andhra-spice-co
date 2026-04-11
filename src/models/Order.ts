@@ -20,7 +20,7 @@ export interface IOrder extends Document {
     country: string;
   };
   paymentMethod: 'ONLINE' | 'COD';
-  paymentStatus: 'Pending' | 'Success' | 'Failed';
+  paymentStatus: 'Pending' | 'Success' | 'Failed' | 'Refunded';
   orderStatus: 'Placed' | 'Packed' | 'Shipped' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
   courierType?: 'India Post' | 'DTDC';
   trackingId?: string;
@@ -49,7 +49,7 @@ const OrderSchema = new Schema<IOrder>({
     country: { type: String, required: true, default: 'India' }
   },
   paymentMethod: { type: String, enum: ['ONLINE', 'COD'], required: true },
-  paymentStatus: { type: String, enum: ['Pending', 'Success', 'Failed'], default: 'Pending' },
+  paymentStatus: { type: String, enum: ['Pending', 'Success', 'Failed', 'Refunded'], default: 'Pending' },
   orderStatus: { 
     type: String, 
     enum: ['Placed', 'Packed', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'],

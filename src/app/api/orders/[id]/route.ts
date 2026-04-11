@@ -44,17 +44,37 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const data = await req.json();
 
-    const order = await Order.findByIdAndUpdate(id, data, { new: true });
+    const order = await Order.findById(id);
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    if (data.orderStatus === 'Shipped' || data.trackingId) {
+    if (data.orderStatus === 'Cancelled' && order.orderStatus !== 'Cancelled') {
+      // Execute the deep cancellation logic (Refunds + Stock reduction)
+      const { processCancellationAndRefund } = await import('@/lib/refundUtils');
+      const { success, message } = await processCancellationAndRefund(order);
+      
+      if (!success) {
+        return NextResponse.json({ error: message }, { status: 400 });
+      }
+
       const user = await User.findById(order.userId);
       if (user) {
-        await sendShippingUpdate(user.email, order, user);
+        const { sendCancellationEmail } = await import('@/lib/email');
+        await sendCancellationEmail(user.email, order, user);
+      }
+      return NextResponse.json(order);
+    }
+
+    // Normal update for shipping/tracking etc
+    const updatedOrder = await Order.findByIdAndUpdate(id, data, { new: true });
+
+    if (data.orderStatus === 'Shipped' || data.trackingId) {
+      const user = await User.findById(updatedOrder.userId);
+      if (user) {
+        await sendShippingUpdate(user.email, updatedOrder, user);
       }
     }
 
-    return NextResponse.json(order);
+    return NextResponse.json(updatedOrder);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

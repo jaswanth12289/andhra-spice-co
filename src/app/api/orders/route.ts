@@ -60,14 +60,14 @@ export async function POST(req: NextRequest) {
       totalAmount,
       shippingAddress,
       paymentMethod,
-      paymentStatus: paymentMethod === 'COD' ? 'Pending' : 'Success',
+      paymentStatus: 'Pending',
       orderStatus: 'Placed'
     };
 
     const newOrder = await Order.create(orderData);
 
     const user = await User.findById(payload.userId);
-    if (user) {
+    if (user && paymentMethod === 'COD') {
       await sendOrderConfirmation(user.email, newOrder, user);
     }
 

@@ -32,21 +32,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Order cannot be cancelled at this stage' }, { status: 400 });
     }
 
-    // Restore stock
-    for (let p of order.products) {
-      const result = await Product.updateOne(
-        { _id: p.productId, "options.weight": p.weight },
-        { $inc: { "options.$.stock": p.quantity } }
-      );
-      
-      // Fallback for old single-variant products without options array
-      if (result.matchedCount === 0) {
-         await Product.findByIdAndUpdate(p.productId, { $inc: { stock: p.quantity } });
-      }
+    const { processCancellationAndRefund } = await import('@/lib/refundUtils');
+    const { success, message } = await processCancellationAndRefund(order);
+    
+    if (!success) {
+      return NextResponse.json({ error: message }, { status: 400 });
     }
-
-    order.orderStatus = 'Cancelled';
-    await order.save();
 
     const user = await User.findById(order.userId);
     if (user) {

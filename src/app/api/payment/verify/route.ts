@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongoose';
 import Order from '@/models/Order';
+import User from '@/models/User';
+import Product from '@/models/Product';
+import { sendOrderConfirmation } from '@/lib/email';
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,19 +29,44 @@ export async function GET(req: NextRequest) {
 
     if (cashfreeResponse.ok) {
       const orderData = await cashfreeResponse.json();
+      await dbConnect();
       
-      if (orderData.order_status === 'PAID') {
-        await dbConnect();
-        await Order.findOneAndUpdate(
-          { customOrderId: order_id },
-          { paymentStatus: 'Success' }
-        );
+      const order = await Order.findOne({ customOrderId: order_id });
+      if (!order) return NextResponse.redirect(new URL('/', req.url));
+
+      // Only process if the order is still Pending
+      if (order.paymentStatus === 'Pending') {
+        if (orderData.order_status === 'PAID') {
+          // Payment Success!
+          order.paymentStatus = 'Success';
+          await order.save();
+
+          const user = await User.findById(order.userId);
+          if (user) {
+            await sendOrderConfirmation(user.email, order, user);
+          }
+        } else {
+          // Payment Failed or Abandoned (ACTIVE, FAILED, etc)
+          order.paymentStatus = 'Failed';
+          await order.save();
+
+          // Restore Product Stock since the payment didn't go through
+          for (let p of order.products) {
+            const result = await Product.updateOne(
+              { _id: p.productId, "options.weight": p.weight },
+              { $inc: { "options.$.stock": p.quantity } }
+            );
+            if (result.matchedCount === 0) {
+              await Product.findByIdAndUpdate(p.productId, { $inc: { stock: p.quantity } });
+            }
+          }
+        }
       }
     } else {
       console.error("Cashfree verify error:", await cashfreeResponse.text());
     }
 
-    // Redirect to the order confirmation page
+    // Redirect to the order confirmation/status page
     return NextResponse.redirect(new URL(`/order/${order_id}`, req.url));
 
   } catch (error: any) {
