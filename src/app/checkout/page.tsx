@@ -5,6 +5,7 @@ import { useCartStore } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import Script from 'next/script';
 
 export default function CheckoutPage() {
   const { items, getTotal, clearCart } = useCartStore();
@@ -53,100 +54,121 @@ export default function CheckoutPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to place order');
 
       clearCart();
+
+      // If online payment, redirect to Cashfree
+      if (paymentMethod === 'ONLINE' && data.payment_session_id) {
+        if (typeof window !== 'undefined' && (window as any).Cashfree) {
+          const cashfree = (window as any).Cashfree({
+            mode: process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox',
+          });
+          cashfree.checkout({
+            paymentSessionId: data.payment_session_id,
+            redirectTarget: "_self" 
+          });
+        } else {
+          toast.error("Payment Gateway did not load. Please try again.");
+          setLoading(false);
+        }
+        return; // Important to return here so we don't route manually
+      }
+
+      // COD or fallback
       router.push(`/order/${data.customOrderId}`);
     } catch (error: any) {
       toast.error(error.message);
-    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <h1 className="text-4xl font-bold font-outfit mb-8">Checkout</h1>
-      <form onSubmit={handleCheckout} className="grid grid-cols-1 md:grid-cols-2 gap-12">
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-spice-900 p-6 rounded-2xl shadow-sm border border-spice-200">
-            <h2 className="text-2xl font-bold font-outfit mb-4 border-b pb-2">Delivery Details</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold mb-1">Phone Number (10 digits)</label>
-                <input 
-                  type="text" required maxLength={10} minLength={10}
-                  value={phone} onChange={e => setPhone(e.target.value)}
-                  className="w-full p-3 border border-spice-300 rounded outline-none focus:ring-2 focus:ring-spice-600 dark:bg-black dark:text-white dark:border-spice-700" 
-                  placeholder="e.g. 9876543210"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-1">Street Address</label>
-                <input 
-                  type="text" required
-                  value={address.street} onChange={e => setAddress({...address, street: e.target.value})}
-                  className="w-full p-3 border border-spice-300 rounded outline-none focus:ring-2 focus:ring-spice-600 dark:bg-black dark:text-white dark:border-spice-700" 
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+    <>
+      <Script src="https://sdk.cashfree.com/js/v3/cashfree.js" strategy="lazyOnload" />
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <h1 className="text-4xl font-bold font-outfit mb-8">Checkout</h1>
+        <form onSubmit={handleCheckout} className="grid grid-cols-1 md:grid-cols-2 gap-12">
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-spice-900 p-6 rounded-2xl shadow-sm border border-spice-200">
+              <h2 className="text-2xl font-bold font-outfit mb-4 border-b pb-2">Delivery Details</h2>
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-bold mb-1">City</label>
+                  <label className="block text-sm font-bold mb-1">Phone Number (10 digits)</label>
                   <input 
-                    type="text" required
-                    value={address.city} onChange={e => setAddress({...address, city: e.target.value})}
+                    type="text" required maxLength={10} minLength={10}
+                    value={phone} onChange={e => setPhone(e.target.value)}
                     className="w-full p-3 border border-spice-300 rounded outline-none focus:ring-2 focus:ring-spice-600 dark:bg-black dark:text-white dark:border-spice-700" 
+                    placeholder="e.g. 9876543210"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold mb-1">State</label>
+                  <label className="block text-sm font-bold mb-1">Street Address</label>
                   <input 
                     type="text" required
-                    value={address.state} onChange={e => setAddress({...address, state: e.target.value})}
+                    value={address.street} onChange={e => setAddress({...address, street: e.target.value})}
+                    className="w-full p-3 border border-spice-300 rounded outline-none focus:ring-2 focus:ring-spice-600 dark:bg-black dark:text-white dark:border-spice-700" 
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold mb-1">City</label>
+                    <input 
+                      type="text" required
+                      value={address.city} onChange={e => setAddress({...address, city: e.target.value})}
+                      className="w-full p-3 border border-spice-300 rounded outline-none focus:ring-2 focus:ring-spice-600 dark:bg-black dark:text-white dark:border-spice-700" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-1">State</label>
+                    <input 
+                      type="text" required
+                      value={address.state} onChange={e => setAddress({...address, state: e.target.value})}
+                      className="w-full p-3 border border-spice-300 rounded outline-none focus:ring-2 focus:ring-spice-600 dark:bg-black dark:text-white dark:border-spice-700" 
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold mb-1">Zip Code</label>
+                  <input 
+                    type="text" required
+                    value={address.zipCode} onChange={e => setAddress({...address, zipCode: e.target.value})}
                     className="w-full p-3 border border-spice-300 rounded outline-none focus:ring-2 focus:ring-spice-600 dark:bg-black dark:text-white dark:border-spice-700" 
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-bold mb-1">Zip Code</label>
-                <input 
-                  type="text" required
-                  value={address.zipCode} onChange={e => setAddress({...address, zipCode: e.target.value})}
-                  className="w-full p-3 border border-spice-300 rounded outline-none focus:ring-2 focus:ring-spice-600 dark:bg-black dark:text-white dark:border-spice-700" 
-                />
+            </div>
+
+            <div className="bg-white dark:bg-spice-900 p-6 rounded-2xl shadow-sm border border-spice-200">
+              <h2 className="text-2xl font-bold font-outfit mb-4 border-b pb-2">Payment Option</h2>
+              <div className="space-y-3">
+                <label className="flex items-center space-x-3 p-4 border rounded-xl cursor-pointer hover:bg-spice-50 dark:hover:bg-spice-800 transition">
+                  <input type="radio" value="COD" checked={paymentMethod === 'COD'} onChange={() => setPaymentMethod('COD')} className="w-5 h-5 text-spice-600 focus:ring-spice-600" />
+                  <span className="font-bold">Cash on Delivery (COD)</span>
+                </label>
+                <label className="flex items-center space-x-3 p-4 border rounded-xl cursor-pointer hover:bg-spice-50 dark:hover:bg-spice-800 transition">
+                  <input type="radio" value="ONLINE" checked={paymentMethod === 'ONLINE'} onChange={() => setPaymentMethod('ONLINE')} className="w-5 h-5 text-spice-600 focus:ring-spice-600" />
+                  <span className="font-bold">Pay Online (Cashfree)</span>
+                </label>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-spice-900 p-6 rounded-2xl shadow-sm border border-spice-200">
-            <h2 className="text-2xl font-bold font-outfit mb-4 border-b pb-2">Payment Option</h2>
-            <div className="space-y-3">
-              <label className="flex items-center space-x-3 p-4 border rounded-xl cursor-pointer hover:bg-spice-50 dark:hover:bg-spice-800 transition">
-                <input type="radio" value="COD" checked={paymentMethod === 'COD'} onChange={() => setPaymentMethod('COD')} className="w-5 h-5 text-spice-600 focus:ring-spice-600" />
-                <span className="font-bold">Cash on Delivery (COD)</span>
-              </label>
-              <label className="flex items-center space-x-3 p-4 border rounded-xl cursor-pointer hover:bg-spice-50 dark:hover:bg-spice-800 transition">
-                <input type="radio" value="ONLINE" checked={paymentMethod === 'ONLINE'} onChange={() => setPaymentMethod('ONLINE')} className="w-5 h-5 text-spice-600 focus:ring-spice-600" />
-                <span className="font-bold">Pay Online (Razorpay)</span>
-              </label>
+          <div className="bg-spice-50 dark:bg-spice-900 border border-spice-200 rounded-3xl p-8 h-fit shadow-sm sticky top-24">
+            <h2 className="text-2xl font-bold mb-6 border-b border-spice-200 pb-4 font-outfit">Summary</h2>
+            {items.map(item => (
+              <div key={`${item.productId}-${item.weight}`} className="flex justify-between mb-4">
+                <span className="opacity-80">{item.name} ({item.weight}) x {item.quantity}</span>
+                <span className="font-bold">₹{item.price * item.quantity}</span>
+              </div>
+            ))}
+            <div className="flex justify-between mb-8 mt-6 text-3xl font-bold border-t border-spice-200 pt-6">
+              <span>Total</span>
+              <span className="text-spice-600 dark:text-spice-400">₹{getTotal()}</span>
             </div>
+            <button type="submit" disabled={loading} className="w-full bg-spice-600 hover:bg-spice-700 text-white py-4 rounded-xl font-bold text-xl shadow-lg transition">
+              {loading ? 'Processing...' : `Pay ₹${getTotal()}`}
+            </button>
           </div>
-        </div>
-
-        <div className="bg-spice-50 dark:bg-spice-900 border border-spice-200 rounded-3xl p-8 h-fit shadow-sm sticky top-24">
-          <h2 className="text-2xl font-bold mb-6 border-b border-spice-200 pb-4 font-outfit">Summary</h2>
-          {items.map(item => (
-            <div key={`${item.productId}-${item.weight}`} className="flex justify-between mb-4">
-              <span className="opacity-80">{item.name} ({item.weight}) x {item.quantity}</span>
-              <span className="font-bold">₹{item.price * item.quantity}</span>
-            </div>
-          ))}
-          <div className="flex justify-between mb-8 mt-6 text-3xl font-bold border-t border-spice-200 pt-6">
-            <span>Total</span>
-            <span className="text-spice-600 dark:text-spice-400">₹{getTotal()}</span>
-          </div>
-          <button type="submit" disabled={loading} className="w-full bg-spice-600 hover:bg-spice-700 text-white py-4 rounded-xl font-bold text-xl shadow-lg transition">
-            {loading ? 'Processing...' : `Pay ₹${getTotal()}`}
-          </button>
-        </div>
-      </form>
-    </div>
+        </form>
+      </div>
+    </>
   );
 }

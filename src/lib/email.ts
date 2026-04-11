@@ -111,7 +111,7 @@ export async function sendCancellationEmail(email: string, order: any, user: any
         <h2>Order Cancelled</h2>
         <p>Hi ${user?.name || 'Customer'},</p>
         <p>We're writing to confirm that your order <b>${order.customOrderId}</b> has been officially cancelled.</p>
-        <p>Your items have been restored to our inventory. If you paid online via Razorpay, your refund will be processed back to your original payment method within 5-7 business days.</p>
+        <p>Your items have been restored to our inventory. If you paid online via Cashfree, your refund will be processed back to your original payment method within 5-7 business days.</p>
         <div style="text-align: center; margin-top: 30px;">
           <a href="https://andhra-spice-co.vercel.app/products" style="padding: 12px 24px; background-color: #dc2f02; color: white; text-decoration: none; font-weight: bold; border-radius: 4px;">Explore Other Spices</a>
         </div>

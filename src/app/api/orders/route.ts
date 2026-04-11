@@ -71,6 +71,55 @@ export async function POST(req: NextRequest) {
       await sendOrderConfirmation(user.email, newOrder, user);
     }
 
+    if (paymentMethod === 'ONLINE') {
+      const isSandbox = process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === 'sandbox';
+      const cashfreeBaseUrl = isSandbox ? 'https://sandbox.cashfree.com/pg' : 'https://api.cashfree.com/pg';
+      const domainUrl = process.env.NEXT_PUBLIC_URL || 'http://localhost:3000';
+
+      const cashfreePayload = {
+        order_id: customOrderId,
+        order_amount: totalAmount,
+        order_currency: 'INR',
+        customer_details: {
+          customer_id: payload.userId,
+          customer_phone: phoneNumber,
+          customer_email: user?.email || 'customer@example.com'
+        },
+        order_meta: {
+          return_url: `${domainUrl}/api/payment/verify?order_id=${customOrderId}`
+        }
+      };
+
+      try {
+        const cashfreeResponse = await fetch(`${cashfreeBaseUrl}/orders`, {
+          method: 'POST',
+          headers: {
+            'x-client-id': process.env.CASHFREE_APP_ID || '',
+            'x-client-secret': process.env.CASHFREE_SECRET_KEY || '',
+            'x-api-version': '2023-08-01',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(cashfreePayload)
+        });
+
+        const cashfreeData = await cashfreeResponse.json();
+
+        if (!cashfreeResponse.ok) {
+          console.error("Cashfree order error:", cashfreeData);
+          return NextResponse.json({ error: 'Payment gateway initialization failed', details: cashfreeData }, { status: 500 });
+        }
+
+        return NextResponse.json({
+          ...newOrder.toObject(),
+          payment_session_id: cashfreeData.payment_session_id
+        }, { status: 201 });
+
+      } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 });
+      }
+    }
+
     return NextResponse.json(newOrder, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
