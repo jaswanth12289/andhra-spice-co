@@ -112,7 +112,8 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
           ...newOrder.toObject(),
-          payment_session_id: cashfreeData.payment_session_id
+          payment_session_id: cashfreeData.payment_session_id,
+          cashfree_environment: isSandbox ? 'sandbox' : 'production'
         }, { status: 201 });
 
       } catch (err: any) {

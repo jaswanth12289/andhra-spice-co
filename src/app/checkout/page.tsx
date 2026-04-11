@@ -59,7 +59,7 @@ export default function CheckoutPage() {
       if (paymentMethod === 'ONLINE' && data.payment_session_id) {
         if (typeof window !== 'undefined' && (window as any).Cashfree) {
           const cashfree = (window as any).Cashfree({
-            mode: process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === 'production' ? 'production' : 'sandbox',
+            mode: data.cashfree_environment || 'sandbox',
           });
           cashfree.checkout({
             paymentSessionId: data.payment_session_id,
