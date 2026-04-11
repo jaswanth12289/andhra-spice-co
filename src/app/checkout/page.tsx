@@ -27,8 +27,15 @@ export default function CheckoutPage() {
     }
   }, [user, authLoading, router, useRegisteredPhone]);
 
-  if (authLoading || !user || items.length === 0) return (
-    <div className="flex justify-center items-center h-screen font-bold text-xl">Loading...</div>
+  if (authLoading || !user) return (
+    <div className="flex justify-center items-center h-screen font-bold text-xl animate-pulse">Authenticating...</div>
+  );
+
+  if (items.length === 0 && !loading) return (
+    <div className="flex flex-col justify-center items-center h-[70vh] font-bold text-xl space-y-4">
+      <p>Your checkout is completely empty.</p>
+      <a href="/products" className="bg-spice-600 text-white px-8 py-3 rounded-xl hover:bg-spice-700 transition">Shop Spices</a>
+    </div>
   );
 
   const handleCheckout = async (e: React.FormEvent) => {
@@ -57,7 +64,9 @@ export default function CheckoutPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to place order');
 
-      clearCart();
+      if (paymentMethod === 'COD') {
+        clearCart();
+      }
 
       // If online payment, redirect to Cashfree
       if (paymentMethod === 'ONLINE' && data.payment_session_id) {

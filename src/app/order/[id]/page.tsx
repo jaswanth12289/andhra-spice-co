@@ -5,6 +5,8 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { Truck, CheckCircle, Package, MapPin, XCircle } from 'lucide-react';
 
+import { useCartStore } from '@/store/useCartStore';
+
 export default function OrderSuccessPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const { id } = resolvedParams;
@@ -14,7 +16,13 @@ export default function OrderSuccessPage({ params }: { params: Promise<{ id: str
   useEffect(() => {
     fetch(`/api/orders/${id}`)
       .then(res => res.ok ? res.json() : Promise.reject())
-      .then(data => setOrder(data))
+      .then(data => {
+        setOrder(data);
+        // Clean up the cart selectively if payment actually succeeded or it was COD
+        if (data.paymentStatus === 'Success' || data.paymentMethod === 'COD') {
+           useCartStore.getState().clearCart();
+        }
+      })
       .catch(() => toast.error('Order not found'))
       .finally(() => setLoading(false));
   }, [id]);
