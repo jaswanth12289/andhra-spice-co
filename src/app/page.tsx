@@ -33,9 +33,11 @@ export default function Home() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-6xl sm:text-8xl md:text-9xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-white/40 font-[family-name:var(--font-outfit)] leading-[1.1] sm:leading-[0.9]"
+            className="text-6xl sm:text-8xl md:text-9xl font-bold tracking-tighter font-[family-name:var(--font-outfit)] leading-[1.1] sm:leading-[0.9]"
           >
-            Taste The <br /> <span className="text-spice-500 bg-none text-transparent bg-clip-text bg-gradient-to-br from-spice-400 to-spice-700 pb-2 drop-shadow-lg">Heritage.</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-white/40">Taste The</span> 
+            <br /> 
+            <span className="text-transparent bg-clip-text bg-gradient-to-br from-spice-400 to-spice-700 pb-2">Heritage.</span>
           </motion.h1>
 
           <motion.p 
