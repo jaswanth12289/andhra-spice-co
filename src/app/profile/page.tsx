@@ -21,6 +21,7 @@ export default function ProfilePage() {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
       logout();
+      useCartStore.getState().clearCart();
       router.push('/');
     } catch (error) {
       console.error('Logout failed', error);
