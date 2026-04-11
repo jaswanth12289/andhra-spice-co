@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongoose';
-import Order from '@/models/Order';
-import User from '@/models/User';
-import Product from '@/models/Product';
+import { db } from '@/lib/firestore';
+import { collection, doc, getDoc, getDocs, updateDoc, query, where } from 'firebase/firestore';
 import { sendOrderConfirmation } from '@/lib/email';
 
 export async function GET(req: NextRequest) {
@@ -28,37 +26,55 @@ export async function GET(req: NextRequest) {
     });
 
     if (cashfreeResponse.ok) {
-      const orderData = await cashfreeResponse.json();
-      await dbConnect();
+      const cashfreeData = await cashfreeResponse.json();
       
-      const order = await Order.findOne({ customOrderId: order_id });
-      if (!order) return NextResponse.redirect(new URL('/', req.url));
+      // Find order by customOrderId
+      const ordersRef = collection(db, 'orders');
+      const q = query(ordersRef, where('customOrderId', '==', order_id));
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) return NextResponse.redirect(new URL('/', req.url));
+
+      const orderDoc = snapshot.docs[0];
+      const orderId = orderDoc.id;
+      const orderData = orderDoc.data();
+      const orderRef = doc(db, 'orders', orderId);
 
       // Only process if the order is still Pending
-      if (order.paymentStatus === 'Pending') {
-        if (orderData.order_status === 'PAID') {
+      if (orderData.paymentStatus === 'Pending') {
+        if (cashfreeData.order_status === 'PAID') {
           // Payment Success!
-          order.paymentStatus = 'Success';
-          await order.save();
+          await updateDoc(orderRef, { 
+            paymentStatus: 'Success',
+            updatedAt: new Date().toISOString()
+          });
 
-          const user = await User.findById(order.userId);
-          if (user) {
-            await sendOrderConfirmation(user.email, order, user);
+          const userRef = doc(db, 'users', orderData.userId);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            await sendOrderConfirmation(userSnap.data().email, { ...orderData, customOrderId: order_id }, userSnap.data());
           }
         } else {
-          // Payment Failed or Abandoned (ACTIVE, FAILED, etc)
-          order.paymentStatus = 'Failed';
-          order.orderStatus = 'Cancelled'; // Mark strictly as cancelled so UI updates!
-          await order.save();
+          // Payment Failed or Abandoned
+          await updateDoc(orderRef, { 
+            paymentStatus: 'Failed',
+            orderStatus: 'Cancelled',
+            updatedAt: new Date().toISOString()
+          });
 
-          // Restore Product Stock since the payment didn't go through
-          for (let p of order.products) {
-            const result = await Product.updateOne(
-              { _id: p.productId, "options.weight": p.weight },
-              { $inc: { "options.$.stock": p.quantity } }
-            );
-            if (result.matchedCount === 0) {
-              await Product.findByIdAndUpdate(p.productId, { $inc: { stock: p.quantity } });
+          // Restore Product Stock
+          for (let p of orderData.products) {
+            const productRef = doc(db, 'products', p.productId);
+            const productSnap = await getDoc(productRef);
+            if (productSnap.exists()) {
+              const productData = productSnap.data();
+              const updatedOptions = productData.options.map((opt: any) => {
+                if (opt.weight === p.weight) {
+                  return { ...opt, stock: (opt.stock || 0) + p.quantity };
+                }
+                return opt;
+              });
+              await updateDoc(productRef, { options: updatedOptions });
             }
           }
         }

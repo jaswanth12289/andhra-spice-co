@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongoose';
-import User from '@/models/User';
-import bcrypt from 'bcryptjs';
+import { db } from '@/lib/firestore';
+import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+
+const FIREBASE_API_KEY = 'AIzaSyDPqnVzbrdcx-ISu0mWcyLNkq5FvbW8sCQ';
 
 export async function POST(req: Request) {
   try {
-    await dbConnect();
-    const { name, email, password, phoneNumber } = await req.json();
+    const { firebaseToken, name, phoneNumber } = await req.json();
 
-    if (!name || !email || !password || !phoneNumber) {
+    if (!firebaseToken || !name || !phoneNumber) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
 
@@ -16,18 +16,36 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid phone number format' }, { status: 400 });
     }
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return NextResponse.json({ error: 'User already exists' }, { status: 400 });
+    // Securely verify Firebase token
+    const verifyRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: firebaseToken })
+    });
+
+    const verifyData = await verifyRes.json();
+    if (!verifyRes.ok || !verifyData.users || verifyData.users.length === 0) {
+      return NextResponse.json({ error: 'Invalid or expired Firebase authentication' }, { status: 401 });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const email = verifyData.users[0].email;
 
-    const user = await User.create({
+    // Check if user already exists in Firestore
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('email', '==', email));
+    const snapshot = await getDocs(q);
+
+    if (!snapshot.empty) {
+      return NextResponse.json({ error: 'User already exists. Please login.' }, { status: 400 });
+    }
+
+    await addDoc(usersRef, {
       name,
       email,
-      password: hashedPassword,
-      phoneNumber
+      phoneNumber,
+      role: 'user',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     });
 
     return NextResponse.json({ message: 'User created' }, { status: 201 });

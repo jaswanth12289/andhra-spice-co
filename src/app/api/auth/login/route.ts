@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongoose';
-import User from '@/models/User';
-import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/auth';
+import { db } from '@/lib/firestore';
+import { collection, query, where, getDocs, addDoc, doc, setDoc } from 'firebase/firestore';
+
+const FIREBASE_API_KEY = 'AIzaSyDPqnVzbrdcx-ISu0mWcyLNkq5FvbW8sCQ';
+
+// Admin email - first login from this email gets admin role
+const ADMIN_EMAIL = '2300031385ird@gmail.com';
 
 const rateLimitMap = new Map<string, { count: number; timestamp: number }>();
 
@@ -31,32 +35,71 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Too many login attempts. Try again later.' }, { status: 429 });
     }
 
-    await dbConnect();
-    const { email, password } = await req.json();
+    const { firebaseToken, name } = await req.json();
 
-    if (!email || !password) {
-      return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+    if (!firebaseToken) {
+      return NextResponse.json({ error: 'Missing authentication token' }, { status: 400 });
     }
 
-    const user = await User.findOne({ email });
-    if (!user || !user.password) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    // Securely verify the Firebase token against Google's servers
+    const verifyRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: firebaseToken })
+    });
+
+    const verifyData = await verifyRes.json();
+    if (!verifyRes.ok || !verifyData.users || verifyData.users.length === 0) {
+      return NextResponse.json({ error: 'Invalid or expired Firebase authentication' }, { status: 401 });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    const authUser = verifyData.users[0];
+    const email = authUser.email;
+    const displayName = authUser.displayName || name || 'Spice Enthusiast';
+
+    // Check if user exists in Firestore
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('email', '==', email));
+    const snapshot = await getDocs(q);
+
+    let userId: string;
+    let userData: any;
+
+    if (snapshot.empty) {
+      // Auto-assign admin role if the email matches
+      const role = email === ADMIN_EMAIL ? 'admin' : 'user';
+      
+      const newUser = {
+        name: displayName,
+        email,
+        role,
+        phoneNumber: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      const docRef = await addDoc(usersRef, newUser);
+      userId = docRef.id;
+      userData = { id: userId, ...newUser };
+    } else {
+      const userDoc = snapshot.docs[0];
+      userId = userDoc.id;
+      userData = { id: userId, ...userDoc.data() };
     }
 
-    const token = await signToken({ userId: user._id.toString(), role: user.role, email: user.email });
+    // Issue our secure local JWT
+    const token = await signToken({ userId, role: userData.role, email: userData.email });
 
-    const response = NextResponse.json({ message: 'Logged in', user: { id: user._id, name: user.name, role: user.role, email: user.email } }, { status: 200 });
+    const response = NextResponse.json({ 
+      message: 'Logged in', 
+      user: { id: userId, name: userData.name, role: userData.role, email: userData.email } 
+    }, { status: 200 });
     
     response.cookies.set('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 // 7 days
+      maxAge: 7 * 24 * 60 * 60
     });
 
     return response;

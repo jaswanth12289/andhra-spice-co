@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongoose';
-import Order from '@/models/Order';
-import Product from '@/models/Product';
-import User from '@/models/User';
 import { verifyToken } from '@/lib/auth';
+import { db } from '@/lib/firestore';
+import { collection, addDoc, getDocs, getDoc, doc, updateDoc, query, where, orderBy } from 'firebase/firestore';
 import { generateOrderId } from '@/lib/orderUtils';
 import { sendOrderConfirmation } from '@/lib/email';
 
@@ -14,39 +12,36 @@ export async function POST(req: NextRequest) {
     const payload = await verifyToken(token) as any;
     if (!payload?.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    await dbConnect();
     const data = await req.json();
-    
     const { products, phoneNumber, shippingAddress, paymentMethod, totalAmount } = data;
     
     // Validate stock
     for (let p of products) {
-      const dbProduct = await Product.findById(p.productId);
-      if (!dbProduct) return NextResponse.json({ error: `Product not found: ${p.name}` }, { status: 400 });
+      const productRef = doc(db, 'products', p.productId);
+      const productSnap = await getDoc(productRef);
+      if (!productSnap.exists()) return NextResponse.json({ error: `Product not found: ${p.name}` }, { status: 400 });
       
-      const option = dbProduct.options?.find((o: any) => o.weight === p.weight);
+      const productData = productSnap.data();
+      const option = productData.options?.find((o: any) => o.weight === p.weight);
       
-      // Fallback for old orders or single-variant schemas (if any exist)
-      if (!option && (dbProduct as any).stock !== undefined) {
-         if ((dbProduct as any).stock < p.quantity) return NextResponse.json({ error: `Insufficient stock for ${p.name}. Only ${(dbProduct as any).stock} left.` }, { status: 400 });
-      } else if (option) {
-         if (option.stock < p.quantity) {
-           return NextResponse.json({ error: `Insufficient stock for ${p.name} (${p.weight}). Only ${option.stock} left.` }, { status: 400 });
-         }
+      if (option && option.stock < p.quantity) {
+        return NextResponse.json({ error: `Insufficient stock for ${p.name} (${p.weight}). Only ${option.stock} left.` }, { status: 400 });
       }
     }
 
     // Decrement stock
     for (let p of products) {
-      // First try to decrement option stock
-      const result = await Product.updateOne(
-        { _id: p.productId, "options.weight": p.weight },
-        { $inc: { "options.$.stock": -1 * p.quantity } }
-      );
-      
-      // If variant wasn't found (maybe an old test product), decrement fallback root stock
-      if (result.matchedCount === 0) {
-        await Product.findByIdAndUpdate(p.productId, { $inc: { stock: -1 * p.quantity } });
+      const productRef = doc(db, 'products', p.productId);
+      const productSnap = await getDoc(productRef);
+      if (productSnap.exists()) {
+        const productData = productSnap.data();
+        const updatedOptions = productData.options.map((opt: any) => {
+          if (opt.weight === p.weight) {
+            return { ...opt, stock: opt.stock - p.quantity };
+          }
+          return opt;
+        });
+        await updateDoc(productRef, { options: updatedOptions });
       }
     }
 
@@ -58,16 +53,24 @@ export async function POST(req: NextRequest) {
       phoneNumber,
       products,
       totalAmount,
-      deliveryCharge: payload.deliveryCharge || 0,
+      deliveryCharge: data.deliveryCharge || 0,
       shippingAddress,
       paymentMethod,
       paymentStatus: 'Pending',
-      orderStatus: 'Placed'
+      orderStatus: 'Placed',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
-    const newOrder = await Order.create(orderData);
+    const ordersRef = collection(db, 'orders');
+    const orderDocRef = await addDoc(ordersRef, orderData);
+    const newOrder = { id: orderDocRef.id, ...orderData };
 
-    const user = await User.findById(payload.userId);
+    // Send email for COD
+    const userRef = doc(db, 'users', payload.userId);
+    const userSnap = await getDoc(userRef);
+    const user = userSnap.exists() ? userSnap.data() : null;
+
     if (user && paymentMethod === 'COD') {
       await sendOrderConfirmation(user.email, newOrder, user);
     }
@@ -112,7 +115,7 @@ export async function POST(req: NextRequest) {
         }
 
         return NextResponse.json({
-          ...newOrder.toObject(),
+          ...newOrder,
           payment_session_id: cashfreeData.payment_session_id,
           cashfree_environment: isSandbox ? 'sandbox' : 'production'
         }, { status: 201 });
@@ -134,10 +137,17 @@ export async function GET(req: NextRequest) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const payload = await verifyToken(token) as any;
     
-    await dbConnect();
+    const ordersRef = collection(db, 'orders');
+    let q;
+    
+    if (payload.role === 'admin') {
+      q = query(ordersRef, orderBy('createdAt', 'desc'));
+    } else {
+      q = query(ordersRef, where('userId', '==', payload.userId), orderBy('createdAt', 'desc'));
+    }
 
-    const query = payload.role === 'admin' ? {} : { userId: payload.userId };
-    const orders = await Order.find(query).sort({ createdAt: -1 });
+    const snapshot = await getDocs(q);
+    const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
     return NextResponse.json(orders);
   } catch (error: any) {
