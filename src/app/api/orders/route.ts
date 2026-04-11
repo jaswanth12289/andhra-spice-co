@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
       phoneNumber,
       products,
       totalAmount,
+      deliveryCharge: payload.deliveryCharge || 0,
       shippingAddress,
       paymentMethod,
       paymentStatus: 'Pending',

@@ -39,9 +39,15 @@ export async function sendOrderConfirmation(email: string, order: any, user: any
             ${productsHtml}
           </tbody>
           <tfoot>
+            ${order.deliveryCharge > 0 ? `
             <tr>
-              <td colspan="2" style="padding: 8px; border: 1px solid #ddd; font-weight: bold; text-align: right;">Total Amount</td>
-              <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">₹${order.totalAmount}</td>
+              <td colspan="2" style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #666;">Delivery Charge</td>
+              <td style="padding: 8px; border: 1px solid #ddd; color: #666;">₹${order.deliveryCharge}</td>
+            </tr>
+            ` : ''}
+            <tr>
+              <td colspan="2" style="padding: 8px; border: 1px solid #ddd; font-weight: bold; text-align: right;">Final Total</td>
+              <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: #d00000;">₹${order.totalAmount}</td>
             </tr>
           </tfoot>
         </table>

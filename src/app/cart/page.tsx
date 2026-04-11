@@ -76,12 +76,18 @@ export default function CartPage() {
             <span className="font-bold">₹{getTotal()}</span>
           </div>
           <div className="flex justify-between mb-8 text-lg">
-            <span className="opacity-80">Shipping</span>
-            <span className="text-green-600 dark:text-green-400 font-bold">Free Shipping</span>
+            <span className="opacity-80">Delivery Handling</span>
+            {useCartStore.getState().getDeliveryCharge() === 0 ? (
+              <span className="text-green-600 dark:text-green-400 font-bold">Free</span>
+            ) : (
+              <span className="font-bold text-spice-600 dark:text-spice-400 font-mono">₹{useCartStore.getState().getDeliveryCharge()}</span>
+            )}
           </div>
+          <p className="text-xs text-gray-500 mb-6 -mt-4 text-right">Free delivery for orders over ₹499</p>
+
           <div className="flex justify-between mb-8 text-3xl font-bold border-t border-spice-200 pt-6">
             <span>Total</span>
-            <span className="text-spice-600 dark:text-spice-400">₹{getTotal()}</span>
+            <span className="text-spice-600 dark:text-spice-400">₹{useCartStore.getState().getFinalTotal()}</span>
           </div>
           <Link href="/checkout" className="block w-full bg-spice-600 hover:bg-spice-700 text-white text-center py-4 rounded-xl font-bold text-xl shadow-lg transition">
             Proceed to Checkout

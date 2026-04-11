@@ -18,6 +18,8 @@ interface CartStore {
   updateQuantity: (productId: string, weight: string, quantity: number) => void;
   clearCart: () => void;
   getTotal: () => number;
+  getDeliveryCharge: () => number;
+  getFinalTotal: () => number;
 }
 
 export const useCartStore = create<CartStore>()(
@@ -41,6 +43,16 @@ export const useCartStore = create<CartStore>()(
       }),
       clearCart: () => set({ items: [] }),
       getTotal: () => get().items.reduce((total, item) => total + item.price * item.quantity, 0),
+      getDeliveryCharge: () => {
+        const total = get().items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        if (total === 0) return 0;
+        return total > 499 ? 0 : 60;
+      },
+      getFinalTotal: () => {
+        const total = get().items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const delivery = total > 499 || total === 0 ? 0 : 60;
+        return total + delivery;
+      }
     }),
     { name: 'asc-cart' }
   )
