@@ -14,17 +14,36 @@ export default function OrderSuccessPage({ params }: { params: Promise<{ id: str
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/orders/${id}`)
-      .then(res => res.ok ? res.json() : Promise.reject())
-      .then(data => {
-        setOrder(data);
-        // Clean up the cart selectively if payment actually succeeded or it was COD
-        if (data.paymentStatus === 'Success' || data.paymentMethod === 'COD') {
-           useCartStore.getState().clearCart();
+    const loadOrder = async () => {
+      try {
+        const res = await fetch(`/api/orders/${id}`);
+        if (!res.ok) throw new Error();
+        let data = await res.json();
+        
+        // If ONLINE payment is still Pending, re-verify with Cashfree
+        if (data.paymentMethod === 'ONLINE' && data.paymentStatus === 'Pending') {
+          const recheckRes = await fetch(`/api/orders/${id}/recheck`);
+          if (recheckRes.ok) {
+            // Re-fetch order to get updated status
+            const updatedRes = await fetch(`/api/orders/${id}`);
+            if (updatedRes.ok) {
+              data = await updatedRes.json();
+            }
+          }
         }
-      })
-      .catch(() => toast.error('Order not found'))
-      .finally(() => setLoading(false));
+
+        setOrder(data);
+        // Clean up the cart only if payment succeeded or COD
+        if (data.paymentStatus === 'Success' || data.paymentMethod === 'COD') {
+          useCartStore.getState().clearCart();
+        }
+      } catch {
+        toast.error('Order not found');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadOrder();
   }, [id]);
 
   if (loading) return <div className="text-center py-20 font-bold text-xl animate-pulse">Loading order details...</div>;
