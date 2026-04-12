@@ -260,14 +260,14 @@ export default function CheckoutPage() {
           </div>
         )}
 
-        <h1 className="text-4xl font-bold font-outfit mb-8 relative z-10">Checkout</h1>
+        <h1 className="text-4xl font-bold font-outfit mb-8 relative z-10 text-gray-900 dark:text-white">Checkout</h1>
         <form onSubmit={handleCheckout} className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
           <div className="space-y-6">
-            <div className="bg-white dark:bg-spice-900 p-6 rounded-2xl shadow-sm border border-spice-200">
-              <h2 className="text-2xl font-bold font-outfit mb-4 border-b pb-2">Delivery Details</h2>
+            <div className="bg-white dark:bg-spice-900 p-6 rounded-2xl shadow-sm border border-spice-200 text-gray-900 dark:text-white">
+              <h2 className="text-2xl font-bold font-outfit mb-4 border-b pb-2 text-gray-900 dark:text-white">Delivery Details</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-bold mb-1">Phone Number (10 digits)</label>
+                  <label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">Phone Number (10 digits)</label>
                   {user?.phoneNumber && (
                     <label className="flex items-center space-x-2 text-sm mb-3 mt-1 cursor-pointer text-spice-400 font-medium">
                       <input 
@@ -294,21 +294,21 @@ export default function CheckoutPage() {
                         setUseRegisteredPhone(false);
                       }
                     }}
-                    className="w-full p-3 border border-spice-300 rounded outline-none focus:ring-2 focus:ring-spice-600 dark:bg-black dark:text-white dark:border-spice-700" 
+                    className="w-full p-3 border border-spice-300 rounded outline-none focus:ring-2 focus:ring-spice-600 bg-white text-gray-900 dark:bg-black dark:text-white dark:border-spice-700" 
                     placeholder="e.g. 9876543210"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold mb-1">Street Address</label>
+                  <label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">Street Address</label>
                   <input 
                     type="text" required
                     value={address.street} onChange={e => setAddress({...address, street: e.target.value})}
-                    className="w-full p-3 border border-spice-300 rounded outline-none focus:ring-2 focus:ring-spice-600 dark:bg-black dark:text-white dark:border-spice-700" 
+                    className="w-full p-3 border border-spice-300 rounded outline-none focus:ring-2 focus:ring-spice-600 bg-white text-gray-900 dark:bg-black dark:text-white dark:border-spice-700" 
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-bold mb-1">City</label>
+                    <label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">City</label>
                     <input 
                       type="text" required
                       value={address.city} onChange={e => setAddress({...address, city: e.target.value})}
@@ -316,7 +316,7 @@ export default function CheckoutPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold mb-1">State</label>
+                    <label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">State</label>
                     <input 
                       type="text" required
                       value={address.state} onChange={e => setAddress({...address, state: e.target.value})}
@@ -325,7 +325,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold mb-1">Zip Code</label>
+                  <label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">Zip Code</label>
                   <input 
                     type="text" required
                     value={address.zipCode} onChange={e => setAddress({...address, zipCode: e.target.value})}
@@ -335,23 +335,23 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-spice-900 p-6 rounded-2xl shadow-sm border border-spice-200">
-              <h2 className="text-2xl font-bold font-outfit mb-4 border-b pb-2">Payment Option</h2>
+            <div className="bg-white dark:bg-spice-900 p-6 rounded-2xl shadow-sm border border-spice-200 text-gray-900 dark:text-white">
+              <h2 className="text-2xl font-bold font-outfit mb-4 border-b pb-2 text-gray-900 dark:text-white">Payment Option</h2>
               <div className="space-y-3">
                 <label className="flex items-center space-x-3 p-4 border rounded-xl cursor-pointer hover:bg-spice-50 dark:hover:bg-spice-800 transition">
                   <input type="radio" value="COD" checked={paymentMethod === 'COD'} onChange={() => setPaymentMethod('COD')} className="w-5 h-5 text-spice-600 focus:ring-spice-600" />
-                  <span className="font-bold">Cash on Delivery (COD)</span>
+                  <span className="font-bold text-gray-900 dark:text-white">Cash on Delivery (COD)</span>
                 </label>
                 <label className="flex items-center space-x-3 p-4 border rounded-xl cursor-pointer hover:bg-spice-50 dark:hover:bg-spice-800 transition">
                   <input type="radio" value="ONLINE" checked={paymentMethod === 'ONLINE'} onChange={() => setPaymentMethod('ONLINE')} className="w-5 h-5 text-spice-600 focus:ring-spice-600" />
-                  <span className="font-bold">Pay Online (Cashfree)</span>
+                  <span className="font-bold text-gray-900 dark:text-white">Pay Online (Cashfree)</span>
                 </label>
               </div>
             </div>
           </div>
 
-          <div className="bg-spice-50 dark:bg-spice-900 border border-spice-200 rounded-3xl p-8 h-fit shadow-sm sticky top-24">
-            <h2 className="text-2xl font-bold mb-6 border-b border-spice-200 pb-4 font-outfit">Summary</h2>
+          <div className="bg-spice-50 dark:bg-spice-900 border border-spice-200 rounded-3xl p-8 h-fit shadow-sm sticky top-24 text-gray-900 dark:text-white">
+            <h2 className="text-2xl font-bold mb-6 border-b border-spice-200 pb-4 font-outfit text-gray-900 dark:text-white">Summary</h2>
             {items.map(item => (
               <div key={`${item.productId}-${item.weight}`} className="flex justify-between mb-4">
                 <span className="opacity-80">{item.name} ({item.weight}) x {item.quantity}</span>
