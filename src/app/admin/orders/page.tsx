@@ -62,7 +62,7 @@ export default function AdminOrders() {
       ) : (
         <div className="space-y-6">
           {orders.map(order => (
-            <div key={order._id} className="bg-white dark:bg-spice-900 border border-spice-200 dark:border-spice-800 rounded-2xl shadow-sm p-6 overflow-hidden">
+            <div key={order.id || order.customOrderId} className="bg-white dark:bg-spice-900 border border-spice-200 dark:border-spice-800 rounded-2xl shadow-sm p-6 overflow-hidden">
               <div className="flex flex-col md:flex-row justify-between md:items-center border-b border-spice-200 dark:border-spice-800 pb-4 mb-4 gap-4">
                 <div>
                   <h3 className="text-xl font-bold font-outfit flex items-center space-x-3">
@@ -95,7 +95,7 @@ export default function AdminOrders() {
 
                 <div>
                   <h4 className="font-bold mb-3 border-b border-spice-100 pb-2">Admin Controls</h4>
-                  <form onSubmit={(e) => handleUpdate(e, order._id)} className="space-y-4 bg-spice-50 dark:bg-black p-4 rounded-xl border border-spice-200 dark:border-spice-800">
+                  <form onSubmit={(e) => handleUpdate(e, order.id)} className="space-y-4 bg-spice-50 dark:bg-black p-4 rounded-xl border border-spice-200 dark:border-spice-800">
                     <div>
                       <label className="block text-xs font-bold mb-1">Update Status</label>
                       <select name="orderStatus" defaultValue={order.orderStatus} className="w-full p-2 border border-spice-300 rounded dark:bg-spice-900 dark:border-spice-700 outline-none text-sm">
@@ -128,8 +128,8 @@ export default function AdminOrders() {
                       <textarea name="adminNotes" defaultValue={order.adminNotes || ''} className="w-full p-2 border border-spice-300 rounded dark:bg-spice-900 dark:border-spice-700 outline-none text-sm h-16" placeholder="Internal notes..." />
                     </div>
 
-                    <button type="submit" disabled={updatingId === order._id} className="w-full bg-spice-800 hover:bg-spice-900 text-white font-bold py-2 rounded transition">
-                      {updatingId === order._id ? 'Saving...' : 'Save Updates & Notify'}
+                    <button type="submit" disabled={updatingId === order.id} className="w-full bg-spice-800 hover:bg-spice-900 text-white font-bold py-2 rounded transition">
+                      {updatingId === order.id ? 'Saving...' : 'Save Updates & Notify'}
                     </button>
                     {(order.orderStatus === 'Shipped' || order.trackingId) && (
                       <p className="text-xs text-orange-600 dark:text-orange-400 font-bold text-center">Saving will trigger an Email Notification to the customer.</p>

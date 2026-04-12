@@ -111,10 +111,10 @@ export default function ProductsPage() {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.5, delay: idx * 0.05 }}
-                key={product._id} 
+                key={product.id} 
                 className="group relative bg-[#0a0a0a] rounded-3xl overflow-hidden border border-white/10 hover:border-spice-500/30 transition-all duration-500 hover:shadow-[0_20px_60px_rgba(220,47,2,0.15)] flex flex-col"
               >
-                <Link href={`/products/${product._id}`} className="flex-1 flex flex-col h-full block">
+                <Link href={`/products/${product.id}`} className="flex-1 flex flex-col h-full block">
                   <div className="h-[300px] relative overflow-hidden">
                     <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-60 group-hover:opacity-90" />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/40 to-transparent" />

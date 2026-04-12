@@ -8,7 +8,7 @@ export default function AdminProducts() {
   const [loading, setLoading] = useState(true);
   
   const defaultOption = { weight: '100g', price: '', stock: '' };
-  const defaultForm = { _id: '', name: '', description: '', category: 'Whole Spices', imageUrl: '', options: [defaultOption] };
+  const defaultForm = { id: '', name: '', description: '', category: 'Whole Spices', imageUrl: '', options: [defaultOption] };
   
   const [form, setForm] = useState(defaultForm);
   const [isEditing, setIsEditing] = useState(false);
@@ -53,9 +53,9 @@ export default function AdminProducts() {
 
     try {
       const method = isEditing ? 'PUT' : 'POST';
-      const url = isEditing ? `/api/products/${form._id}` : '/api/products';
+      const url = isEditing ? `/api/products/${form.id}` : '/api/products';
       
-      const { _id, ...restForm } = form;
+      const { id, ...restForm } = form;
       
       const payload = {
         ...restForm,
@@ -178,7 +178,7 @@ export default function AdminProducts() {
               </thead>
               <tbody className="divide-y divide-spice-200 dark:divide-spice-800">
                 {products.map(p => (
-                  <tr key={p._id} className="hover:bg-spice-50 dark:hover:bg-black/50 transition">
+                  <tr key={p.id} className="hover:bg-spice-50 dark:hover:bg-black/50 transition">
                     <td className="p-4 font-bold flex items-center space-x-3">
                       <img src={p.imageUrl} alt="" className="w-10 h-10 rounded object-cover" />
                       <span>{p.name}</span>
@@ -205,7 +205,7 @@ export default function AdminProducts() {
                           options: p.options && p.options.length > 0 ? p.options : [defaultOption] // fallback for old data
                         }); 
                       }} className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition"><Pencil className="w-4 h-4" /></button>
-                      <button onClick={() => handleDelete(p._id)} className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition"><Trash2 className="w-4 h-4" /></button>
+                      <button onClick={() => handleDelete(p.id)} className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition"><Trash2 className="w-4 h-4" /></button>
                     </td>
                   </tr>
                 ))}

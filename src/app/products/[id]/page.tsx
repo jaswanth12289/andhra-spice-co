@@ -44,7 +44,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       return;
     }
     addItem({
-      productId: product._id,
+      productId: product.id,
       name: product.name,
       price: activeOption.price,
       quantity: quantity,

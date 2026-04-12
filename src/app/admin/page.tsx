@@ -80,7 +80,7 @@ export default function AdminOverview() {
             </thead>
             <tbody className="divide-y divide-white/5">
               {lowStockProducts.map(p => (
-                <tr key={p._id} className="hover:bg-white/5 transition-colors">
+                <tr key={p.id} className="hover:bg-white/5 transition-colors">
                   <td className="p-4 sm:p-6 font-bold text-white text-base sm:text-lg whitespace-nowrap">{p.name}</td>
                   <td className="p-4 sm:p-6 opacity-70 text-xs sm:text-sm tracking-widest uppercase text-white">{p.category}</td>
                   <td className="p-4 sm:p-6 text-right">
