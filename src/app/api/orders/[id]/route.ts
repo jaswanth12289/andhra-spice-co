@@ -38,6 +38,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Self-heal: Fix mismatch where payment succeeded but orderStatus stuck
+    if (orderData.paymentMethod === 'ONLINE' && orderData.paymentStatus === 'Success' && orderData.orderStatus === 'Payment Pending') {
+      const fixRef = doc(db, 'orders', orderId);
+      await updateDoc(fixRef, { orderStatus: 'Placed', updatedAt: new Date().toISOString() });
+      orderData.orderStatus = 'Placed';
+    }
+
     return NextResponse.json(orderData);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

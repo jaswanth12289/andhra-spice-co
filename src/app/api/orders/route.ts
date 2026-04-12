@@ -288,6 +288,20 @@ export async function GET(req: NextRequest) {
       orders = orders.filter((o: any) => o.userId === payload.userId);
     }
 
+    // SELF-HEAL: Fix ONLINE orders where paymentStatus=Success but orderStatus still stuck on "Payment Pending"
+    for (let i = 0; i < orders.length; i++) {
+      const order: any = orders[i];
+      if (
+        order.paymentMethod === 'ONLINE' &&
+        order.paymentStatus === 'Success' &&
+        order.orderStatus === 'Payment Pending'
+      ) {
+        const orderRef = doc(db, 'orders', order.id);
+        await updateDoc(orderRef, { orderStatus: 'Placed', updatedAt: new Date().toISOString() });
+        orders[i] = { ...order, orderStatus: 'Placed' };
+      }
+    }
+
     // LEGACY FIX: Fix old ONLINE orders that show "Placed" but were never paid
     for (let i = 0; i < orders.length; i++) {
       const order: any = orders[i];
