@@ -6,6 +6,8 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Script from 'next/script';
+import Link from 'next/link';
+import { Clock, RefreshCw, XCircle } from 'lucide-react';
 
 export default function CheckoutPage() {
   const { items, getTotal, clearCart, getFinalTotal, getDeliveryCharge } = useCartStore();
@@ -18,6 +20,8 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'ONLINE'>('COD');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [pendingOrder, setPendingOrder] = useState<any>(null);
+  const [resuming, setResuming] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -28,20 +32,72 @@ export default function CheckoutPage() {
     }
   }, [user, authLoading, router, useRegisteredPhone]);
 
+  // Check for existing pending ONLINE orders
+  useEffect(() => {
+    if (!user) return;
+    fetch('/api/orders')
+      .then(res => res.json())
+      .then((orders: any[]) => {
+        if (!Array.isArray(orders)) return;
+        const pending = orders.find((o: any) =>
+          o.paymentMethod === 'ONLINE' &&
+          (o.paymentStatus === 'Awaiting' || o.paymentStatus === 'Pending') &&
+          o.orderStatus === 'Payment Pending' &&
+          (Date.now() - new Date(o.createdAt).getTime()) < 30 * 60 * 1000
+        );
+        if (pending) setPendingOrder(pending);
+      })
+      .catch(() => {});
+  }, [user]);
+
   if (authLoading || !user) return (
     <div className="flex justify-center items-center h-screen font-bold text-xl animate-pulse">Authenticating...</div>
   );
 
-  if (items.length === 0 && !loading) return (
+  if (items.length === 0 && !loading && !pendingOrder) return (
     <div className="flex flex-col justify-center items-center h-[70vh] font-bold text-xl space-y-4">
       <p>Your checkout is completely empty.</p>
       <a href="/products" className="bg-spice-600 text-white px-8 py-3 rounded-xl hover:bg-spice-700 transition">Shop Spices</a>
     </div>
   );
 
+  const handleResumePayment = async () => {
+    if (resuming || !pendingOrder) return;
+    setResuming(true);
+    try {
+      const res = await fetch(`/api/orders/${pendingOrder.customOrderId}/retry`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      if (typeof window !== 'undefined' && (window as any).Cashfree) {
+        const cashfree = (window as any).Cashfree({ mode: data.cashfree_environment || 'production' });
+        cashfree.checkout({ paymentSessionId: data.payment_session_id, redirectTarget: "_self" });
+      } else {
+        toast.error("Payment gateway is loading. Please wait and try again.");
+        setResuming(false);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to resume payment');
+      setResuming(false);
+    }
+  };
+
+  const handleCancelPending = async () => {
+    if (!pendingOrder) return;
+    try {
+      const res = await fetch(`/api/orders/${pendingOrder.id}/cancel`, { method: 'POST' });
+      if (res.ok) {
+        setPendingOrder(null);
+        toast.success('Previous order cancelled');
+      }
+    } catch {
+      toast.error('Failed to cancel order');
+    }
+  };
+
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submitted || loading) return; // Prevent duplicate submissions
+    if (submitted || loading) return;
     if (!/^\d{10}$/.test(phone)) {
       toast.error('Please enter a valid 10-digit phone number');
       return;
@@ -82,10 +138,11 @@ export default function CheckoutPage() {
             redirectTarget: "_self" 
           });
         } else {
-          toast.error("Payment Gateway did not load. Please try again.");
+          toast.error("Payment gateway is loading. Please wait and try again.");
           setLoading(false);
+          setSubmitted(false);
         }
-        return; // Important to return here so we don't route manually
+        return;
       }
 
       // COD or fallback
@@ -101,6 +158,47 @@ export default function CheckoutPage() {
     <>
       <Script src="https://sdk.cashfree.com/js/v3/cashfree.js" strategy="lazyOnload" />
       <div className="max-w-4xl mx-auto px-4 pt-32 pb-12">
+
+        {/* Pending Payment Banner */}
+        {pendingOrder && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-300 dark:border-yellow-700 rounded-2xl p-6 mb-8 relative z-10">
+            <div className="flex items-start space-x-4">
+              <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl flex-shrink-0">
+                <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-lg text-yellow-800 dark:text-yellow-300 mb-1">You have a pending payment</h3>
+                <p className="text-sm text-yellow-700/70 dark:text-yellow-400/60 mb-1">
+                  Order <span className="font-mono font-bold">{pendingOrder.customOrderId}</span> • ₹{pendingOrder.totalAmount}
+                </p>
+                <p className="text-xs text-yellow-600/50 dark:text-yellow-400/40 mb-4">
+                  Complete payment to confirm your order, or cancel to start fresh.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <button 
+                    onClick={handleResumePayment}
+                    disabled={resuming}
+                    className="flex items-center space-x-2 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2.5 px-6 rounded-xl transition disabled:opacity-50 shadow-sm"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${resuming ? 'animate-spin' : ''}`} />
+                    <span>{resuming ? 'Opening payment...' : 'Resume Payment'}</span>
+                  </button>
+                  <button 
+                    onClick={handleCancelPending}
+                    className="flex items-center space-x-2 border-2 border-yellow-400 dark:border-yellow-700 text-yellow-700 dark:text-yellow-400 font-bold py-2.5 px-6 rounded-xl transition hover:bg-yellow-100 dark:hover:bg-yellow-900/20"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    <span>Cancel & Start Fresh</span>
+                  </button>
+                  <Link href={`/order/${pendingOrder.customOrderId}`} className="text-sm text-yellow-600 underline self-center ml-2">
+                    View Order →
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <h1 className="text-4xl font-bold font-outfit mb-8 relative z-10">Checkout</h1>
         <form onSubmit={handleCheckout} className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
           <div className="space-y-6">
@@ -209,8 +307,19 @@ export default function CheckoutPage() {
               <span>Total</span>
               <span className="text-spice-600 dark:text-spice-400">₹{getFinalTotal()}</span>
             </div>
-            <button type="submit" disabled={loading} className="w-full bg-spice-600 hover:bg-spice-700 text-white py-4 rounded-xl font-bold text-xl shadow-lg transition">
-              {loading ? 'Processing...' : `Pay ₹${getFinalTotal()}`}
+            <button 
+              type="submit" 
+              disabled={loading || submitted} 
+              className="w-full bg-spice-600 hover:bg-spice-700 disabled:bg-spice-400 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold text-xl shadow-lg transition flex items-center justify-center space-x-2"
+            >
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <span>Pay ₹{getFinalTotal()}</span>
+              )}
             </button>
           </div>
         </form>

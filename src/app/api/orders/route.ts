@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     const deliveryCharge = serverTotal > 499 ? 0 : 60;
     const totalAmount = serverTotal + deliveryCharge;
 
-    // Anti-duplication: cancel any existing pending ONLINE order with same items
+    // Anti-duplication: reuse existing pending ONLINE order with same items
     if (paymentMethod === 'ONLINE') {
       const ordersRef = collection(db, 'orders');
       const existingQ = query(ordersRef, where('userId', '==', payload.userId));
@@ -48,13 +48,73 @@ export async function POST(req: NextRequest) {
           existing.paymentMethod === 'ONLINE' &&
           (existing.paymentStatus === 'Awaiting' || existing.paymentStatus === 'Pending') &&
           existing.orderStatus === 'Payment Pending' &&
-          (Date.now() - new Date(existing.createdAt).getTime()) < 10 * 60 * 1000
+          (Date.now() - new Date(existing.createdAt).getTime()) < 30 * 60 * 1000
         ) {
           const sameProducts = JSON.stringify(existing.products.map((p: any) => `${p.productId}_${p.weight}_${p.quantity}`).sort()) ===
             JSON.stringify(products.map((p: any) => `${p.productId}_${p.weight}_${p.quantity}`).sort());
           
           if (sameProducts) {
-            // Cancel the old pending order — a fresh one will be created below
+            // Reuse this order — create a new Cashfree payment session with unique suffix
+            const isSandbox = process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === 'sandbox';
+            const cashfreeBaseUrl = isSandbox ? 'https://sandbox.cashfree.com/pg' : 'https://api.cashfree.com/pg';
+            const domainUrl = process.env.NEXT_PUBLIC_URL || 'http://localhost:3000';
+            
+            const retrySuffix = `R${Date.now()}`;
+            const cfOrderId = `${existing.customOrderId}_${retrySuffix}`;
+            
+            const userRef = doc(db, 'users', payload.userId);
+            const userSnap = await getDoc(userRef);
+            const userEmail = userSnap.exists() ? userSnap.data().email : 'customer@example.com';
+
+            try {
+              const cfRes = await fetch(`${cashfreeBaseUrl}/orders`, {
+                method: 'POST',
+                headers: {
+                  'x-client-id': process.env.CASHFREE_APP_ID || '',
+                  'x-client-secret': process.env.CASHFREE_SECRET_KEY || '',
+                  'x-api-version': '2023-08-01',
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                  order_id: cfOrderId,
+                  order_amount: existing.totalAmount,
+                  order_currency: 'INR',
+                  customer_details: {
+                    customer_id: payload.userId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 50),
+                    customer_phone: existing.phoneNumber,
+                    customer_email: userEmail
+                  },
+                  order_meta: {
+                    return_url: `${domainUrl}/api/payment/verify?order_id=${cfOrderId}&original_order=${existing.customOrderId}`
+                  }
+                })
+              });
+
+              if (cfRes.ok) {
+                const cfData = await cfRes.json();
+                const attempt = { event: 'DEDUP_REUSE', cfOrderId, timestamp: new Date().toISOString(), source: 'checkout' };
+                
+                await updateDoc(doc(db, 'orders', existDoc.id), {
+                  cashfreeOrderId: cfOrderId,
+                  paymentAttempts: [...(existing.paymentAttempts || []), attempt],
+                  updatedAt: new Date().toISOString()
+                });
+
+                return NextResponse.json({
+                  id: existDoc.id,
+                  ...existing,
+                  payment_session_id: cfData.payment_session_id,
+                  cashfree_environment: isSandbox ? 'sandbox' : 'production'
+                }, { status: 201 });
+              }
+              // If Cashfree rejects, fall through to create a completely new order below
+              console.error('Dedup Cashfree retry failed:', await cfRes.text());
+            } catch (e) {
+              console.error('Dedup Cashfree error:', e);
+            }
+            
+            // Cancel the stale order so a fresh one can be created
             await updateDoc(doc(db, 'orders', existDoc.id), {
               orderStatus: 'Cancelled',
               paymentStatus: 'Failed',
@@ -139,7 +199,7 @@ export async function POST(req: NextRequest) {
       };
 
       try {
-        const cashfreeResponse = await fetch(`${cashfreeBaseUrl}/orders`, {
+        let cashfreeResponse = await fetch(`${cashfreeBaseUrl}/orders`, {
           method: 'POST',
           headers: {
             'x-client-id': process.env.CASHFREE_APP_ID || '',
@@ -151,19 +211,43 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify(cashfreePayload)
         });
 
-        const cashfreeData = await cashfreeResponse.json();
+        let cashfreeData = await cashfreeResponse.json();
+
+        // Handle "order with same id already present" — create with unique suffix
+        if (!cashfreeResponse.ok && cashfreeData?.message?.includes('already')) {
+          console.warn('Cashfree duplicate, retrying with suffix for', customOrderId);
+          const suffixedId = `${customOrderId}_R${Date.now()}`;
+          cashfreePayload.order_id = suffixedId;
+          (cashfreePayload.order_meta as any).return_url = `${domainUrl}/api/payment/verify?order_id=${suffixedId}&original_order=${customOrderId}`;
+
+          cashfreeResponse = await fetch(`${cashfreeBaseUrl}/orders`, {
+            method: 'POST',
+            headers: {
+              'x-client-id': process.env.CASHFREE_APP_ID || '',
+              'x-client-secret': process.env.CASHFREE_SECRET_KEY || '',
+              'x-api-version': '2023-08-01',
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(cashfreePayload)
+          });
+          cashfreeData = await cashfreeResponse.json();
+
+          if (cashfreeResponse.ok) {
+            await updateDoc(doc(db, 'orders', orderDocRef.id), { cashfreeOrderId: suffixedId });
+          }
+        }
 
         if (!cashfreeResponse.ok) {
           console.error("Cashfree order error:", JSON.stringify(cashfreeData));
-          // Mark the order as Failed so it doesn't appear as "Payment Pending" forever
           await updateDoc(doc(db, 'orders', orderDocRef.id), {
             paymentStatus: 'Failed',
             orderStatus: 'Cancelled',
             paymentAttempts: [...(orderData.paymentAttempts || []), { event: 'CASHFREE_INIT_FAILED', error: cashfreeData?.message, timestamp: new Date().toISOString() }],
             updatedAt: new Date().toISOString()
           });
-          const cfMessage = cashfreeData?.message || cashfreeData?.error?.message || 'Payment gateway initialization failed';
-          return NextResponse.json({ error: cfMessage, details: cashfreeData }, { status: 500 });
+          // User-friendly error message instead of raw Cashfree error
+          return NextResponse.json({ error: 'Unable to initialize payment. Please try again in a moment.' }, { status: 500 });
         }
 
         return NextResponse.json({
@@ -173,14 +257,13 @@ export async function POST(req: NextRequest) {
         }, { status: 201 });
 
       } catch (err: any) {
-        // Mark order as Failed on network/unexpected errors too
         await updateDoc(doc(db, 'orders', orderDocRef.id), {
           paymentStatus: 'Failed',
           orderStatus: 'Cancelled',
           paymentAttempts: [...(orderData.paymentAttempts || []), { event: 'CASHFREE_INIT_ERROR', error: err.message, timestamp: new Date().toISOString() }],
           updatedAt: new Date().toISOString()
         });
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json({ error: 'Payment service is temporarily unavailable. Please try again.' }, { status: 500 });
       }
     }
 
