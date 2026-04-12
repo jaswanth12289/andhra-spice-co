@@ -37,7 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    if (orderData.orderStatus !== 'Placed' && orderData.orderStatus !== 'Packed') {
+    if (orderData.orderStatus !== 'Placed' && orderData.orderStatus !== 'Packed' && orderData.orderStatus !== 'Payment Pending') {
       return NextResponse.json({ error: 'Order cannot be cancelled at this stage' }, { status: 400 });
     }
 

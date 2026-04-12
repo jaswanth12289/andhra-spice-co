@@ -158,7 +158,12 @@ export async function POST(req: NextRequest) {
     const user = userSnap.exists() ? userSnap.data() : null;
 
     if (user && paymentMethod === 'COD') {
-      await sendOrderConfirmation(user.email, newOrder, user);
+      try {
+        await sendOrderConfirmation(user.email, newOrder, user);
+        await updateDoc(doc(db, 'orders', orderDocRef.id), { emailSent: true });
+      } catch (emailErr) {
+        console.error('COD email send failed:', emailErr);
+      }
     }
 
     if (paymentMethod === 'ONLINE') {
@@ -295,7 +300,7 @@ export async function GET(req: NextRequest) {
                 if (productSnap.exists()) {
                   const pd = productSnap.data();
                   const updatedOptions = pd.options.map((opt: any) => {
-                    if (opt.weight === p.weight) return { ...opt, stock: opt.stock - p.quantity };
+                    if (opt.weight === p.weight) return { ...opt, stock: Math.max(0, (opt.stock || 0) - p.quantity) };
                     return opt;
                   });
                   await updateDoc(productRef, { options: updatedOptions });

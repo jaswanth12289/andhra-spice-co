@@ -79,6 +79,29 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ id: updatedSnap.id, ...updatedSnap.data() });
     }
 
+    // State transition guard — prevent invalid status changes
+    if (data.orderStatus) {
+      const invalidTransitions: Record<string, string[]> = {
+        'Cancelled': ['Placed', 'Packed', 'Shipped', 'Out for Delivery', 'Delivered', 'Payment Pending'],
+        'Delivered': ['Placed', 'Packed', 'Shipped', 'Payment Pending'],
+        'Failed': ['Placed', 'Packed', 'Shipped', 'Out for Delivery', 'Delivered'],
+      };
+
+      const currentStatus = orderData.orderStatus;
+      const blocked = invalidTransitions[currentStatus];
+      if (blocked && blocked.includes(data.orderStatus)) {
+        return NextResponse.json({ error: `Cannot change from "${currentStatus}" to "${data.orderStatus}"` }, { status: 400 });
+      }
+
+      // Block progressing unpaid ONLINE orders past "Payment Pending"
+      if (orderData.paymentMethod === 'ONLINE' && orderData.paymentStatus !== 'Success' && orderData.paymentStatus !== 'Refunded') {
+        const paidOnlyStatuses = ['Packed', 'Shipped', 'Out for Delivery', 'Delivered'];
+        if (paidOnlyStatuses.includes(data.orderStatus)) {
+          return NextResponse.json({ error: `Cannot set "${data.orderStatus}" — ONLINE payment not confirmed yet` }, { status: 400 });
+        }
+      }
+    }
+
     // Normal update for shipping/tracking etc — only allow whitelisted fields
     const allowedFields = ['orderStatus', 'courierType', 'trackingId', 'adminNotes'];
     const safeUpdate: any = { updatedAt: new Date().toISOString() };

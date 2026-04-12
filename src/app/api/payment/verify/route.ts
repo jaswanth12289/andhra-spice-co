@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
       const orderData = orderDoc.data();
       const orderRef = doc(db, 'orders', orderId);
 
-      // Only process if the order is not already paid
+      // Only process if the order is not already paid (idempotency guard)
       if (orderData.paymentStatus !== 'Success') {
         if (cashfreeData.order_status === 'PAID') {
           // Payment Success — deduct stock now if not already done
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
               if (productSnap.exists()) {
                 const productData = productSnap.data();
                 const updatedOptions = productData.options.map((opt: any) => {
-                  if (opt.weight === p.weight) return { ...opt, stock: opt.stock - p.quantity };
+                  if (opt.weight === p.weight) return { ...opt, stock: Math.max(0, (opt.stock || 0) - p.quantity) };
                   return opt;
                 });
                 await updateDoc(productRef, { options: updatedOptions });
@@ -64,7 +64,6 @@ export async function GET(req: NextRequest) {
             }
           }
 
-          // Log this payment verification
           const verifyLog = {
             event: 'PAYMENT_VERIFIED',
             cfOrderId: order_id,
@@ -81,10 +80,18 @@ export async function GET(req: NextRequest) {
             updatedAt: new Date().toISOString()
           });
 
-          const userRef = doc(db, 'users', orderData.userId);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            await sendOrderConfirmation(userSnap.data().email, { ...orderData, customOrderId: dbOrderId }, userSnap.data());
+          // Send email only if not already sent (prevents webhook+redirect duplicate)
+          if (!orderData.emailSent) {
+            const userRef = doc(db, 'users', orderData.userId);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+              try {
+                await sendOrderConfirmation(userSnap.data().email, { ...orderData, customOrderId: dbOrderId }, userSnap.data());
+                await updateDoc(orderRef, { emailSent: true });
+              } catch (emailErr) {
+                console.error('Email send failed (verify):', emailErr);
+              }
+            }
           }
         } else {
           // Payment Failed or Abandoned

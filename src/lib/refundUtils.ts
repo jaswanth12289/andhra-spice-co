@@ -39,22 +39,27 @@ export async function processCancellationAndRefund(orderId: string, orderData: a
       orderData.paymentStatus = 'Refunded';
     } else if (orderData.paymentMethod === 'COD' && orderData.paymentStatus === 'Pending') {
       orderData.paymentStatus = 'Failed';
+    } else if (orderData.paymentMethod === 'ONLINE' && (orderData.paymentStatus === 'Awaiting' || orderData.paymentStatus === 'Pending')) {
+      // ONLINE order that was never paid — just cancel, no refund needed
+      orderData.paymentStatus = 'Failed';
     }
 
-    // 2. Restore Stock to Inventory
-    for (const p of orderData.products) {
-      const productRef = doc(db, 'products', p.productId);
-      const productSnap = await getDoc(productRef);
-      if (productSnap.exists()) {
-        const productData = productSnap.data();
-        const options = productData.options || [];
-        const updatedOptions = options.map((opt: any) => {
-          if (opt.weight === p.weight) {
-            return { ...opt, stock: (opt.stock || 0) + p.quantity };
-          }
-          return opt;
-        });
-        await updateDoc(productRef, { options: updatedOptions });
+    // 2. Restore Stock to Inventory — ONLY if stock was actually deducted
+    if (orderData.stockDeducted) {
+      for (const p of orderData.products) {
+        const productRef = doc(db, 'products', p.productId);
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists()) {
+          const productData = productSnap.data();
+          const options = productData.options || [];
+          const updatedOptions = options.map((opt: any) => {
+            if (opt.weight === p.weight) {
+              return { ...opt, stock: (opt.stock || 0) + p.quantity };
+            }
+            return opt;
+          });
+          await updateDoc(productRef, { options: updatedOptions });
+        }
       }
     }
 
@@ -63,6 +68,7 @@ export async function processCancellationAndRefund(orderId: string, orderData: a
     await updateDoc(orderRef, {
       orderStatus: 'Cancelled',
       paymentStatus: orderData.paymentStatus,
+      stockDeducted: false,
       updatedAt: new Date().toISOString()
     });
 

@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ message: 'Already processed' });
       }
 
-      // Deduct stock if not already done
+      // Deduct stock if not already done (idempotency via stockDeducted flag)
       if (!orderData.stockDeducted) {
         for (const p of orderData.products) {
           const productRef = doc(db, 'products', p.productId);
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
           if (productSnap.exists()) {
             const pd = productSnap.data();
             const updatedOptions = pd.options.map((opt: any) => {
-              if (opt.weight === p.weight) return { ...opt, stock: opt.stock - p.quantity };
+              if (opt.weight === p.weight) return { ...opt, stock: Math.max(0, (opt.stock || 0) - p.quantity) };
               return opt;
             });
             await updateDoc(productRef, { options: updatedOptions });
@@ -87,15 +87,22 @@ export async function POST(req: NextRequest) {
         updatedAt: new Date().toISOString()
       });
 
-      // Send confirmation email
-      const userRef = doc(db, 'users', orderData.userId);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        await sendOrderConfirmation(
-          userSnap.data().email,
-          { ...orderData, customOrderId: originalOrderId },
-          userSnap.data()
-        );
+      // Send confirmation email only if not already sent
+      if (!orderData.emailSent) {
+        const userRef = doc(db, 'users', orderData.userId);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          try {
+            await sendOrderConfirmation(
+              userSnap.data().email,
+              { ...orderData, customOrderId: originalOrderId },
+              userSnap.data()
+            );
+            await updateDoc(orderRef, { emailSent: true });
+          } catch (emailErr) {
+            console.error('Email send failed (webhook):', emailErr);
+          }
+        }
       }
 
       return NextResponse.json({ message: 'Payment confirmed via webhook' });
