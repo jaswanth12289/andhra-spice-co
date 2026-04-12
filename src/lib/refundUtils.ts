@@ -7,7 +7,7 @@ import { doc, getDoc, updateDoc, runTransaction } from 'firebase/firestore';
 export async function processCancellationAndRefund(orderId: string, orderData: any): Promise<{ success: boolean; message: string }> {
   try {
     // 1. Process Online Refunds through Cashfree
-    if (orderData.paymentMethod === 'ONLINE' && orderData.paymentStatus === 'Success') {
+    if (orderData.paymentMethod === 'ONLINE' && orderData.paymentStatus === 'Success' && !orderData.refundProcessed) {
       const isSandbox = process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === 'sandbox';
       const cashfreeBaseUrl = isSandbox ? 'https://sandbox.cashfree.com/pg' : 'https://api.cashfree.com/pg';
 
@@ -65,12 +65,19 @@ export async function processCancellationAndRefund(orderId: string, orderData: a
 
     // 3. Mark Order as Cancelled
     const orderRef = doc(db, 'orders', orderId);
-    await updateDoc(orderRef, {
+    const cancelUpdate: any = {
       orderStatus: 'Cancelled',
       paymentStatus: orderData.paymentStatus,
       stockDeducted: false,
       updatedAt: new Date().toISOString()
-    });
+    };
+    // Track refund if payment was successful
+    if (orderData.paymentStatus === 'Refunded') {
+      cancelUpdate.refundProcessed = true;
+      cancelUpdate.refundedAmount = orderData.totalAmount;
+      cancelUpdate.refundStatus = 'Full';
+    }
+    await updateDoc(orderRef, cancelUpdate);
 
     return { success: true, message: 'Order properly cancelled and refunded' };
 
