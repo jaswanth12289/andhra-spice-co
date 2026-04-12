@@ -218,7 +218,7 @@ export default function AdminOverview() {
           <button
             onClick={async () => {
               if (cleaning) return;
-              if (!confirm('This will delete ALL broken/failed/cancelled test orders. Only paid active orders will be kept. Continue?')) return;
+              if (!confirm('Delete ALL orders and reset counter? This cannot be undone.')) return;
               setCleaning(true);
               setCleanResult(null);
               try {

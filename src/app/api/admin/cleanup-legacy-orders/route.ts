@@ -3,8 +3,7 @@ import { verifyToken } from '@/lib/auth';
 import { db } from '@/lib/firestore';
 import { collection, getDocs, doc, deleteDoc } from 'firebase/firestore';
 
-// Cleanup: delete all broken/test ONLINE orders
-// POST /api/admin/cleanup-legacy-orders — admin only
+// Nuclear cleanup: delete ALL orders (test data only)
 export async function POST(req: NextRequest) {
   try {
     const token = req.cookies.get('token')?.value;
@@ -16,27 +15,19 @@ export async function POST(req: NextRequest) {
     const snapshot = await getDocs(ordersRef);
     
     let deleted = 0;
-    const deletedOrders: string[] = [];
-
     for (const orderDoc of snapshot.docs) {
-      const data = orderDoc.data();
-
-      // KEEP: Successfully paid and active orders
-      if (data.paymentStatus === 'Success' && data.orderStatus !== 'Cancelled') continue;
-
-      // KEEP: Valid COD orders that are not cancelled
-      if (data.paymentMethod === 'COD' && data.orderStatus !== 'Cancelled') continue;
-
-      // DELETE everything else: failed, pending, cancelled, broken ONLINE orders
       await deleteDoc(doc(db, 'orders', orderDoc.id));
-      deletedOrders.push(data.customOrderId || orderDoc.id);
       deleted++;
     }
 
+    // Reset order counter
+    const counterRef = doc(db, 'counters', 'orderId');
+    const { updateDoc } = await import('firebase/firestore');
+    await updateDoc(counterRef, { seq: 0 });
+
     return NextResponse.json({
-      message: `Cleanup complete. Deleted ${deleted} orders.`,
-      deletedCount: deleted,
-      deletedOrders
+      message: `Deleted all ${deleted} test orders. Counter reset to 0.`,
+      deletedCount: deleted
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
