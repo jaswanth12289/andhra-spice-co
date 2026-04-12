@@ -71,8 +71,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const cashfreeBaseUrl = isSandbox ? 'https://sandbox.cashfree.com/pg' : 'https://api.cashfree.com/pg';
     const domainUrl = process.env.NEXT_PUBLIC_URL || 'http://localhost:3000';
 
-    const retryCount = (orderData.paymentAttempts?.length || 0) + 1;
-    const cfOrderId = `${orderData.customOrderId}_R${retryCount}`;
+    const retrySuffix = Date.now().toString(36);
+    const cfOrderId = `${orderData.customOrderId}_R${retrySuffix}`;
 
     // Get user email
     const userRef = doc(db, 'users', orderData.userId);

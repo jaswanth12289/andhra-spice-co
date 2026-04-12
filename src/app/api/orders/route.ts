@@ -60,8 +60,8 @@ export async function POST(req: NextRequest) {
             const cashfreeBaseUrl = isSandbox ? 'https://sandbox.cashfree.com/pg' : 'https://api.cashfree.com/pg';
             const domainUrl = process.env.NEXT_PUBLIC_URL || 'http://localhost:3000';
             
-            const retryCount = (existing.paymentAttempts?.length || 0) + 1;
-            const cfOrderId = `${existing.customOrderId}_R${retryCount}`;
+            const retrySuffix = Date.now().toString(36);
+            const cfOrderId = `${existing.customOrderId}_R${retrySuffix}`;
             
             const userRef = doc(db, 'users', payload.userId);
             const userSnap = await getDoc(userRef);
