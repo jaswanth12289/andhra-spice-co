@@ -149,53 +149,77 @@ export async function GET(req: NextRequest) {
     // Auto-resolve stale ONLINE+Pending orders by checking with Cashfree
     const isSandbox = process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === 'sandbox';
     const cashfreeBaseUrl = isSandbox ? 'https://sandbox.cashfree.com/pg' : 'https://api.cashfree.com/pg';
+    const thirtyMinMs = 30 * 60 * 1000;
 
     for (let i = 0; i < orders.length; i++) {
       const order: any = orders[i];
       if (order.paymentMethod === 'ONLINE' && order.paymentStatus === 'Pending') {
-          // Check with Cashfree
-          try {
-            const cfRes = await fetch(`${cashfreeBaseUrl}/orders/${order.customOrderId}`, {
-              method: 'GET',
-              headers: {
-                'x-client-id': process.env.CASHFREE_APP_ID || '',
-                'x-client-secret': process.env.CASHFREE_SECRET_KEY || '',
-                'x-api-version': '2023-08-01',
-                'Accept': 'application/json'
-              }
-            });
+        const orderRef = doc(db, 'orders', order.id);
+        const orderAgeMs = Date.now() - new Date(order.createdAt).getTime();
+        let resolved = false;
+
+        try {
+          const cfRes = await fetch(`${cashfreeBaseUrl}/orders/${order.customOrderId}`, {
+            method: 'GET',
+            headers: {
+              'x-client-id': process.env.CASHFREE_APP_ID || '',
+              'x-client-secret': process.env.CASHFREE_SECRET_KEY || '',
+              'x-api-version': '2023-08-01',
+              'Accept': 'application/json'
+            }
+          });
+          
+          if (cfRes.ok) {
+            const cfData = await cfRes.json();
             
-            if (cfRes.ok) {
-              const cfData = await cfRes.json();
-              const orderRef = doc(db, 'orders', order.id);
+            if (cfData.order_status === 'PAID') {
+              await updateDoc(orderRef, { paymentStatus: 'Success', updatedAt: new Date().toISOString() });
+              orders[i] = { ...order, paymentStatus: 'Success' };
+              resolved = true;
+            } else if (cfData.order_status !== 'ACTIVE') {
+              // EXPIRED, TERMINATED, etc = cancel
+              await updateDoc(orderRef, { paymentStatus: 'Failed', orderStatus: 'Cancelled', updatedAt: new Date().toISOString() });
+              orders[i] = { ...order, paymentStatus: 'Failed', orderStatus: 'Cancelled' };
+              resolved = true;
               
-              if (cfData.order_status === 'PAID') {
-                await updateDoc(orderRef, { paymentStatus: 'Success', updatedAt: new Date().toISOString() });
-                orders[i] = { ...order, paymentStatus: 'Success' };
-              } else if (cfData.order_status !== 'ACTIVE') {
-                // EXPIRED, TERMINATED, etc = failed
-                await updateDoc(orderRef, { paymentStatus: 'Failed', orderStatus: 'Cancelled', updatedAt: new Date().toISOString() });
-                orders[i] = { ...order, paymentStatus: 'Failed', orderStatus: 'Cancelled' };
-                
-                // Restore stock
-                for (const p of order.products) {
-                  const productRef = doc(db, 'products', p.productId);
-                  const productSnap = await getDoc(productRef);
-                  if (productSnap.exists()) {
-                    const pd = productSnap.data();
-                    const updatedOptions = pd.options.map((opt: any) => {
-                      if (opt.weight === p.weight) return { ...opt, stock: (opt.stock || 0) + p.quantity };
-                      return opt;
-                    });
-                    await updateDoc(productRef, { options: updatedOptions });
-                  }
+              // Restore stock
+              for (const p of order.products) {
+                const productRef = doc(db, 'products', p.productId);
+                const productSnap = await getDoc(productRef);
+                if (productSnap.exists()) {
+                  const pd = productSnap.data();
+                  const updatedOptions = pd.options.map((opt: any) => {
+                    if (opt.weight === p.weight) return { ...opt, stock: (opt.stock || 0) + p.quantity };
+                    return opt;
+                  });
+                  await updateDoc(productRef, { options: updatedOptions });
                 }
               }
-              // If ACTIVE, payment window is still open - leave as Pending
             }
-          } catch (e) {
-            console.error("Cashfree recheck error for", order.customOrderId, e);
+            // If ACTIVE & under 30 min, leave as Pending
           }
+        } catch (e) {
+          console.error("Cashfree recheck error for", order.customOrderId, e);
+        }
+
+        // FALLBACK: If Cashfree couldn't resolve it and order is older than 30 min, force-cancel
+        if (!resolved && orderAgeMs > thirtyMinMs) {
+          await updateDoc(orderRef, { paymentStatus: 'Failed', orderStatus: 'Cancelled', updatedAt: new Date().toISOString() });
+          orders[i] = { ...order, paymentStatus: 'Failed', orderStatus: 'Cancelled' };
+          
+          for (const p of order.products) {
+            const productRef = doc(db, 'products', p.productId);
+            const productSnap = await getDoc(productRef);
+            if (productSnap.exists()) {
+              const pd = productSnap.data();
+              const updatedOptions = pd.options.map((opt: any) => {
+                if (opt.weight === p.weight) return { ...opt, stock: (opt.stock || 0) + p.quantity };
+                return opt;
+              });
+              await updateDoc(productRef, { options: updatedOptions });
+            }
+          }
+        }
       }
     }
 
