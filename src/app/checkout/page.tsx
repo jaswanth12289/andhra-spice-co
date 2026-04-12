@@ -33,7 +33,7 @@ export default function CheckoutPage() {
   }, [user, authLoading, router, useRegisteredPhone]);
 
   // Check for existing pending ONLINE orders
-  useEffect(() => {
+  const fetchPendingOrder = () => {
     if (!user) return;
     fetch('/api/orders')
       .then(res => res.json())
@@ -45,10 +45,71 @@ export default function CheckoutPage() {
           o.orderStatus === 'Payment Pending' &&
           (Date.now() - new Date(o.createdAt).getTime()) < 30 * 60 * 1000
         );
-        if (pending) setPendingOrder(pending);
+        if (pending) {
+          setPendingOrder(pending);
+          // If we were in loading state, reset it — user came back from payment
+          setLoading(false);
+          setSubmitted(false);
+        } else {
+          setPendingOrder(null);
+        }
+
+        // Check if any order just got paid (redirect from Cashfree landed on checkout)
+        const justPaid = orders.find((o: any) =>
+          o.paymentMethod === 'ONLINE' &&
+          o.paymentStatus === 'Success' &&
+          o.orderStatus === 'Placed' &&
+          (Date.now() - new Date(o.updatedAt || o.createdAt).getTime()) < 5 * 60 * 1000
+        );
+        if (justPaid) {
+          clearCart();
+          router.push(`/order/${justPaid.customOrderId}`);
+        }
       })
       .catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchPendingOrder();
   }, [user]);
+
+  // Auto-recover when user returns from Cashfree (tab refocus, app switch, etc.)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && (loading || submitted)) {
+        // User returned to the page — reset loading and check order status
+        setLoading(false);
+        setSubmitted(false);
+        fetchPendingOrder();
+      }
+    };
+
+    const handleFocus = () => {
+      if (loading || submitted) {
+        setLoading(false);
+        setSubmitted(false);
+        fetchPendingOrder();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [loading, submitted]);
+
+  // Timeout safety: if "Processing..." for >5 seconds, auto-reset
+  useEffect(() => {
+    if (!loading) return;
+    const timer = setTimeout(() => {
+      setLoading(false);
+      setSubmitted(false);
+      fetchPendingOrder();
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   if (authLoading || !user) return (
     <div className="flex justify-center items-center h-screen font-bold text-xl animate-pulse">Authenticating...</div>
