@@ -1,13 +1,15 @@
 'use client';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { IndianRupee, ShoppingBag, Package, Clock, CheckCircle, XCircle, AlertTriangle, TrendingUp } from 'lucide-react';
+import { IndianRupee, ShoppingBag, Package, Clock, CheckCircle, XCircle, AlertTriangle, TrendingUp, Wrench } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AdminOverview() {
   const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [migrating, setMigrating] = useState(false);
+  const [migrationResult, setMigrationResult] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -177,6 +179,38 @@ export default function AdminOverview() {
         <div>
           <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Avg Order</p>
           <p className="text-2xl font-bold text-spice-400">₹{totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0}</p>
+        </div>
+      </div>
+
+      {/* Admin Tools */}
+      <div className="mt-10 bg-white/5 border border-white/10 rounded-2xl p-6">
+        <h2 className="text-lg font-bold text-white mb-4 flex items-center space-x-2"><Wrench className="w-5 h-5" /><span>Admin Tools</span></h2>
+        <div className="flex flex-wrap items-center gap-4">
+          <button
+            onClick={async () => {
+              if (migrating) return;
+              setMigrating(true);
+              setMigrationResult(null);
+              try {
+                const res = await fetch('/api/admin/migrate-refunds', { method: 'POST', credentials: 'include' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+                setMigrationResult(`✅ ${data.message}`);
+                toast.success(data.message);
+              } catch (err: any) {
+                setMigrationResult(`❌ ${err.message}`);
+                toast.error(err.message);
+              } finally {
+                setMigrating(false);
+              }
+            }}
+            disabled={migrating}
+            className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-bold py-2.5 px-6 rounded-xl transition flex items-center space-x-2"
+          >
+            {migrating && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
+            <span>{migrating ? 'Running...' : 'Run Refund Migration'}</span>
+          </button>
+          {migrationResult && <span className="text-sm text-gray-400">{migrationResult}</span>}
         </div>
       </div>
     </div>
