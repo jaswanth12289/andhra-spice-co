@@ -104,8 +104,8 @@ export default function MyOrdersPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 pt-28 pb-16 min-h-[80vh]">
-      <h1 className="text-4xl font-bold font-outfit mb-2 text-gray-900 dark:text-white">My Orders</h1>
-      <p className="text-gray-500 mb-10 border-b border-spice-200 dark:border-spice-800 pb-4">Track and review your previous acquisitions.</p>
+      <h1 className="text-4xl font-bold font-outfit mb-2 text-white">My Orders</h1>
+      <p className="text-gray-400 mb-10 border-b border-spice-200 dark:border-spice-800 pb-4">Track and review your previous acquisitions.</p>
 
       {orders.length === 0 ? (
         <div className="text-center py-20 bg-spice-50 dark:bg-spice-900 rounded-3xl border border-spice-200 dark:border-spice-800">

@@ -260,7 +260,7 @@ export default function CheckoutPage() {
           </div>
         )}
 
-        <h1 className="text-4xl font-bold font-outfit mb-8 relative z-10 text-gray-900 dark:text-white">Checkout</h1>
+        <h1 className="text-4xl font-bold font-outfit mb-8 relative z-10 text-white">Checkout</h1>
         <form onSubmit={handleCheckout} className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
           <div className="space-y-6">
             <div className="bg-white dark:bg-spice-900 p-6 rounded-2xl shadow-sm border border-spice-200 text-gray-900 dark:text-white">
