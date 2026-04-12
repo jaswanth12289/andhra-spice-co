@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @theme {
+  --color-spice-50: #fff8f0;
   --color-spice-100: #fff1e6;
   --color-spice-200: #ffd8a8;
   --color-spice-300: #fdb05e;

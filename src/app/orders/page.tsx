@@ -104,7 +104,7 @@ export default function MyOrdersPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 pt-28 pb-16 min-h-[80vh]">
-      <h1 className="text-4xl font-bold font-outfit mb-2">My Orders</h1>
+      <h1 className="text-4xl font-bold font-outfit mb-2 text-gray-900 dark:text-white">My Orders</h1>
       <p className="text-gray-500 mb-10 border-b border-spice-200 dark:border-spice-800 pb-4">Track and review your previous acquisitions.</p>
 
       {orders.length === 0 ? (
@@ -116,15 +116,15 @@ export default function MyOrdersPage() {
       ) : (
         <div className="space-y-8">
           {orders.map(order => (
-            <div key={order.id || order.customOrderId} className="bg-white dark:bg-black border border-spice-200 dark:border-spice-800 rounded-2xl p-6 shadow-sm">
+            <div key={order.id || order.customOrderId} className="bg-white dark:bg-black border border-spice-200 dark:border-spice-800 rounded-2xl p-6 shadow-sm text-gray-900 dark:text-white">
               <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 pb-6 border-b border-spice-100 dark:border-spice-900">
                 <div>
                   <span className="text-xs font-bold text-spice-500 uppercase tracking-widest">{new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric'})}</span>
-                  <h3 className="text-xl font-bold mt-1 font-mono">Order {order.customOrderId}</h3>
+                  <h3 className="text-xl font-bold mt-1 font-mono text-gray-900 dark:text-white">Order {order.customOrderId}</h3>
                 </div>
                 
                 <div className="mt-4 md:mt-0 text-left md:text-right space-y-1">
-                  <div className="text-2xl font-light">₹{order.totalAmount}</div>
+                  <div className="text-2xl font-light text-gray-900 dark:text-white">₹{order.totalAmount}</div>
                   <div className="flex items-center space-x-2 md:justify-end">
                     <span className="text-xs uppercase tracking-widest opacity-60 font-bold">{order.paymentMethod}</span>
                     <PaymentBadge status={order.paymentStatus} />
@@ -134,17 +134,17 @@ export default function MyOrdersPage() {
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-4">
-                  <h4 className="text-xs uppercase tracking-widest font-bold opacity-60">Items</h4>
+                  <h4 className="text-xs uppercase tracking-widest font-bold text-gray-500">Items</h4>
                   {order.products.map((p: any, i: number) => (
                     <div key={i} className="flex justify-between items-center text-sm bg-spice-50 dark:bg-spice-900/40 p-3 rounded-lg border border-spice-100 dark:border-spice-800/50">
                       <span className="font-semibold text-gray-700 dark:text-gray-300">{p.quantity}x {p.name} <span className="opacity-50 text-xs ml-2">({p.weight || 'Default'})</span></span>
-                      <span className="font-bold">₹{p.price * p.quantity}</span>
+                      <span className="font-bold text-gray-800 dark:text-gray-200">₹{p.price * p.quantity}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className="bg-spice-50 dark:bg-spice-900/30 p-6 rounded-xl border border-spice-100 dark:border-spice-800">
-                  <h4 className="text-xs uppercase tracking-widest font-bold opacity-60 mb-4">Delivery Status</h4>
+                <div className="bg-spice-50 dark:bg-spice-900/30 p-6 rounded-xl border border-spice-100 dark:border-spice-800 text-gray-900 dark:text-white">
+                  <h4 className="text-xs uppercase tracking-widest font-bold text-gray-500 mb-4">Delivery Status</h4>
                   
                   <div className="flex items-center space-x-3 mb-4">
                     {order.orderStatus === 'Delivered' ? <CheckCircle className="text-green-500" /> : 
@@ -175,7 +175,7 @@ export default function MyOrdersPage() {
                   )}
 
                   <div className="mt-6 pt-4 border-t border-spice-200 dark:border-spice-800/50 space-y-3">
-                    <p className="text-xs opacity-70">{order.shippingAddress.street}, {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}</p>
+                    <p className="text-xs text-gray-500">{order.shippingAddress.street}, {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}</p>
                     
                     {/* Retry Payment */}
                     {canRetry(order) && (

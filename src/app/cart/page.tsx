@@ -28,11 +28,11 @@ export default function CartPage() {
   
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-12">
-        <h1 className="text-4xl font-bold font-outfit mb-10 border-b border-spice-200 pb-4">Shopping Cart</h1>
+        <h1 className="text-4xl font-bold font-outfit mb-10 border-b border-spice-200 pb-4 text-gray-900 dark:text-white">Shopping Cart</h1>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {items.map(item => (
-              <div key={`${item.productId}-${item.weight}`} className="flex flex-col sm:flex-row border border-spice-200 dark:border-white/10 rounded-2xl p-4 sm:p-6 shadow-sm bg-white dark:bg-spice-900/50 transition hover:shadow-md gap-4 sm:gap-6">
+              <div key={`${item.productId}-${item.weight}`} className="flex flex-col sm:flex-row border border-spice-200 dark:border-white/10 rounded-2xl p-4 sm:p-6 shadow-sm bg-white dark:bg-spice-900/50 transition hover:shadow-md gap-4 sm:gap-6 text-gray-900 dark:text-white">
                 
                 {/* Image & Main Info Row for Mobile */}
                 <div className="flex gap-4 flex-1">
@@ -40,7 +40,7 @@ export default function CartPage() {
                   <div className="flex-1 flex flex-col justify-center">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="text-lg sm:text-2xl font-bold font-outfit leading-tight mb-1">{item.name}</h3>
+                        <h3 className="text-lg sm:text-2xl font-bold font-outfit leading-tight mb-1 text-gray-900 dark:text-white">{item.name}</h3>
                         <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-widest">{item.weight}</p>
                       </div>
                       {/* Trash Icon (Mobile Top Right) */}
@@ -69,8 +69,8 @@ export default function CartPage() {
               </div>
             ))}
           </div>
-          <div className="bg-spice-50 dark:bg-spice-900 border border-spice-200 rounded-3xl p-8 h-fit shadow-sm sticky top-24">
-            <h2 className="text-2xl font-bold mb-6 border-b border-spice-200 pb-4 font-outfit">Order Summary</h2>
+          <div className="bg-spice-50 dark:bg-spice-900 border border-spice-200 rounded-3xl p-8 h-fit shadow-sm sticky top-24 text-gray-900 dark:text-white">
+            <h2 className="text-2xl font-bold mb-6 border-b border-spice-200 pb-4 font-outfit text-gray-900 dark:text-white">Order Summary</h2>
             <div className="flex justify-between mb-4 text-lg">
               <span className="opacity-80">Subtotal</span>
               <span className="font-bold">₹{getTotal()}</span>
