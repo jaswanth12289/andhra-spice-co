@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
         order_amount: totalAmount,
         order_currency: 'INR',
         customer_details: {
-          customer_id: payload.userId,
+          customer_id: payload.userId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 50),
           customer_phone: phoneNumber,
           customer_email: user?.email || 'customer@example.com'
         },
@@ -110,8 +110,9 @@ export async function POST(req: NextRequest) {
         const cashfreeData = await cashfreeResponse.json();
 
         if (!cashfreeResponse.ok) {
-          console.error("Cashfree order error:", cashfreeData);
-          return NextResponse.json({ error: 'Payment gateway initialization failed', details: cashfreeData }, { status: 500 });
+          console.error("Cashfree order error:", JSON.stringify(cashfreeData));
+          const cfMessage = cashfreeData?.message || cashfreeData?.error?.message || 'Payment gateway initialization failed';
+          return NextResponse.json({ error: cfMessage, details: cashfreeData }, { status: 500 });
         }
 
         return NextResponse.json({
