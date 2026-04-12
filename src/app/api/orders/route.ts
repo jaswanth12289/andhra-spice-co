@@ -197,6 +197,13 @@ export async function POST(req: NextRequest) {
 
         if (!cashfreeResponse.ok) {
           console.error("Cashfree order error:", JSON.stringify(cashfreeData));
+          // Mark the order as Failed so it doesn't appear as "Payment Pending" forever
+          await updateDoc(doc(db, 'orders', orderDocRef.id), {
+            paymentStatus: 'Failed',
+            orderStatus: 'Cancelled',
+            paymentAttempts: [...(orderData.paymentAttempts || []), { event: 'CASHFREE_INIT_FAILED', error: cashfreeData?.message, timestamp: new Date().toISOString() }],
+            updatedAt: new Date().toISOString()
+          });
           const cfMessage = cashfreeData?.message || cashfreeData?.error?.message || 'Payment gateway initialization failed';
           return NextResponse.json({ error: cfMessage, details: cashfreeData }, { status: 500 });
         }
@@ -208,6 +215,13 @@ export async function POST(req: NextRequest) {
         }, { status: 201 });
 
       } catch (err: any) {
+        // Mark order as Failed on network/unexpected errors too
+        await updateDoc(doc(db, 'orders', orderDocRef.id), {
+          paymentStatus: 'Failed',
+          orderStatus: 'Cancelled',
+          paymentAttempts: [...(orderData.paymentAttempts || []), { event: 'CASHFREE_INIT_ERROR', error: err.message, timestamp: new Date().toISOString() }],
+          updatedAt: new Date().toISOString()
+        });
         return NextResponse.json({ error: err.message }, { status: 500 });
       }
     }
@@ -231,6 +245,21 @@ export async function GET(req: NextRequest) {
     // Filter by user if not admin
     if (payload.role !== 'admin') {
       orders = orders.filter((o: any) => o.userId === payload.userId);
+    }
+
+    // LEGACY FIX: Fix old ONLINE orders that show "Placed" but were never paid
+    for (let i = 0; i < orders.length; i++) {
+      const order: any = orders[i];
+      if (
+        order.paymentMethod === 'ONLINE' &&
+        order.orderStatus === 'Placed' &&
+        order.paymentStatus !== 'Success' &&
+        order.paymentStatus !== 'Refunded'
+      ) {
+        const orderRef = doc(db, 'orders', order.id);
+        await updateDoc(orderRef, { orderStatus: 'Payment Pending', paymentStatus: order.paymentStatus || 'Awaiting', updatedAt: new Date().toISOString() });
+        orders[i] = { ...order, orderStatus: 'Payment Pending', paymentStatus: order.paymentStatus || 'Awaiting' };
+      }
     }
 
     // Auto-resolve stale ONLINE orders by checking with Cashfree
@@ -260,7 +289,6 @@ export async function GET(req: NextRequest) {
             const cfData = await cfRes.json();
             
             if (cfData.order_status === 'PAID' && !order.stockDeducted) {
-              // Deduct stock now
               for (const p of order.products) {
                 const productRef = doc(db, 'products', p.productId);
                 const productSnap = await getDoc(productRef);
@@ -281,7 +309,6 @@ export async function GET(req: NextRequest) {
               orders[i] = { ...order, paymentStatus: 'Success', orderStatus: 'Placed' };
               resolved = true;
             } else if (cfData.order_status !== 'ACTIVE') {
-              // EXPIRED, TERMINATED — no stock was deducted, just cancel
               await updateDoc(orderRef, { paymentStatus: 'Failed', orderStatus: 'Cancelled', updatedAt: new Date().toISOString() });
               orders[i] = { ...order, paymentStatus: 'Failed', orderStatus: 'Cancelled' };
               resolved = true;
@@ -291,7 +318,7 @@ export async function GET(req: NextRequest) {
           console.error("Cashfree recheck error for", order.customOrderId, e);
         }
 
-        // FALLBACK: order older than 30 min and still unresolved = force-cancel
+        // FALLBACK: 30 min timeout → force-cancel
         if (!resolved && orderAgeMs > thirtyMinMs) {
           await updateDoc(orderRef, { paymentStatus: 'Failed', orderStatus: 'Cancelled', updatedAt: new Date().toISOString() });
           orders[i] = { ...order, paymentStatus: 'Failed', orderStatus: 'Cancelled' };
