@@ -79,8 +79,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ id: updatedSnap.id, ...updatedSnap.data() });
     }
 
-    // Normal update for shipping/tracking etc
-    await updateDoc(orderRef, { ...data, updatedAt: new Date().toISOString() });
+    // Normal update for shipping/tracking etc — only allow whitelisted fields
+    const allowedFields = ['orderStatus', 'courierType', 'trackingId', 'adminNotes'];
+    const safeUpdate: any = { updatedAt: new Date().toISOString() };
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) safeUpdate[key] = data[key];
+    }
+    await updateDoc(orderRef, safeUpdate);
     
     const updatedSnap = await getDoc(orderRef);
     const updatedOrder = { id: updatedSnap.id, ...updatedSnap.data() };

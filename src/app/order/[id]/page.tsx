@@ -70,25 +70,29 @@ export default function OrderSuccessPage({ params }: { params: Promise<{ id: str
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
+    <div className="max-w-4xl mx-auto px-4 pt-28 pb-12">
       <div className="bg-white dark:bg-spice-900 border border-spice-200 p-8 sm:p-12 rounded-3xl shadow-lg">
         <div className="text-center mb-10 border-b pb-8">
           {order.orderStatus === 'Cancelled' ? (
             <XCircle className="w-20 h-20 text-red-500 mx-auto mb-4" />
+          ) : order.orderStatus === 'Payment Pending' || order.paymentStatus === 'Awaiting' ? (
+            <Package className="w-20 h-20 text-yellow-500 mx-auto mb-4 animate-pulse" />
           ) : (
             <CheckCircle className="w-20 h-20 text-green-500 mx-auto mb-4" />
           )}
           <h1 className="text-4xl font-bold font-outfit text-spice-900 dark:text-spice-100">
             {order.orderStatus === 'Cancelled' 
               ? (order.paymentStatus === 'Failed' ? 'Payment Failed' : 'Order Cancelled') 
-              : 'Order Placed Successfully!'}
+              : order.orderStatus === 'Payment Pending' || order.paymentStatus === 'Awaiting'
+                ? 'Awaiting Payment...'
+                : 'Order Placed Successfully!'}
           </h1>
           <p className="mt-4 text-xl">Order ID: <span className="font-bold font-mono bg-spice-100 dark:bg-black px-4 py-2 rounded-lg">{order.customOrderId}</span></p>
           <p className="mt-2 text-spice-600 dark:text-spice-400">Total: ₹{order.totalAmount} &bull; Payment Mode: {order.paymentMethod} &bull; Status: {order.paymentStatus}</p>
         </div>
 
         <div className="mb-10 text-center">
-          <h2 className="text-2xl font-bold font-outfit mb-4">Status: <span className={order.orderStatus === 'Cancelled' ? 'text-red-500' : 'text-spice-600'}>{order.orderStatus}</span></h2>
+          <h2 className="text-2xl font-bold font-outfit mb-4">Status: <span className={order.orderStatus === 'Cancelled' ? 'text-red-500' : order.orderStatus === 'Payment Pending' ? 'text-yellow-500' : 'text-spice-600'}>{order.orderStatus}</span></h2>
           {order.orderStatus === 'Shipped' || order.orderStatus === 'Out for Delivery' ? (
             <div className="bg-spice-50 dark:bg-spice-800 p-6 rounded-xl border border-spice-200 max-w-lg mx-auto">
               <Truck className="w-10 h-10 mx-auto text-spice-600 mb-2" />

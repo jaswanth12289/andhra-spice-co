@@ -26,7 +26,12 @@ export default function AdminOverview() {
 
   const totalRevenue = orders.reduce((acc, order) => order.orderStatus !== 'Cancelled' ? acc + order.totalAmount : acc, 0);
   const totalOrders = orders.filter(order => order.orderStatus !== 'Cancelled').length;
-  const lowStockProducts = products.filter(p => p.stock < 5);
+  const lowStockProducts = products
+    .map((p: any) => ({
+      ...p,
+      totalStock: p.options?.reduce((sum: number, o: any) => sum + (o.stock || 0), 0) || 0
+    }))
+    .filter((p: any) => p.totalStock < 10);
 
   return (
     <div className="w-full">
@@ -84,7 +89,7 @@ export default function AdminOverview() {
                   <td className="p-4 sm:p-6 font-bold text-white text-base sm:text-lg whitespace-nowrap">{p.name}</td>
                   <td className="p-4 sm:p-6 opacity-70 text-xs sm:text-sm tracking-widest uppercase text-white">{p.category}</td>
                   <td className="p-4 sm:p-6 text-right">
-                    <span className="text-red-500 font-bold text-xl sm:text-2xl drop-shadow-[0_0_10px_rgba(239,68,68,0.4)]">{p.stock}</span>
+                    <span className="text-red-500 font-bold text-xl sm:text-2xl drop-shadow-[0_0_10px_rgba(239,68,68,0.4)]">{p.totalStock}</span>
                   </td>
                 </tr>
               ))}

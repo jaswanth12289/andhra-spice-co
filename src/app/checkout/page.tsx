@@ -17,6 +17,7 @@ export default function CheckoutPage() {
   const [address, setAddress] = useState({ street: '', city: '', state: '', zipCode: '' });
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'ONLINE'>('COD');
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -40,11 +41,13 @@ export default function CheckoutPage() {
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitted || loading) return; // Prevent duplicate submissions
     if (!/^\d{10}$/.test(phone)) {
       toast.error('Please enter a valid 10-digit phone number');
       return;
     }
     setLoading(true);
+    setSubmitted(true);
 
     try {
       const orderData = {
@@ -90,6 +93,7 @@ export default function CheckoutPage() {
     } catch (error: any) {
       toast.error(error.message);
       setLoading(false);
+      setSubmitted(false);
     }
   };
 

@@ -41,11 +41,26 @@ export async function GET(req: NextRequest) {
       const orderRef = doc(db, 'orders', orderId);
 
       // Only process if the order is still Pending
-      if (orderData.paymentStatus === 'Pending') {
+      if (orderData.paymentStatus === 'Awaiting' || orderData.paymentStatus === 'Pending') {
         if (cashfreeData.order_status === 'PAID') {
-          // Payment Success!
+          // Payment Success — deduct stock now
+          for (let p of orderData.products) {
+            const productRef = doc(db, 'products', p.productId);
+            const productSnap = await getDoc(productRef);
+            if (productSnap.exists()) {
+              const productData = productSnap.data();
+              const updatedOptions = productData.options.map((opt: any) => {
+                if (opt.weight === p.weight) return { ...opt, stock: opt.stock - p.quantity };
+                return opt;
+              });
+              await updateDoc(productRef, { options: updatedOptions });
+            }
+          }
+
           await updateDoc(orderRef, { 
             paymentStatus: 'Success',
+            orderStatus: 'Placed',
+            stockDeducted: true,
             updatedAt: new Date().toISOString()
           });
 
@@ -55,28 +70,12 @@ export async function GET(req: NextRequest) {
             await sendOrderConfirmation(userSnap.data().email, { ...orderData, customOrderId: order_id }, userSnap.data());
           }
         } else {
-          // Payment Failed or Abandoned
+          // Payment Failed or Abandoned — no stock to restore (never deducted)
           await updateDoc(orderRef, { 
             paymentStatus: 'Failed',
             orderStatus: 'Cancelled',
             updatedAt: new Date().toISOString()
           });
-
-          // Restore Product Stock
-          for (let p of orderData.products) {
-            const productRef = doc(db, 'products', p.productId);
-            const productSnap = await getDoc(productRef);
-            if (productSnap.exists()) {
-              const productData = productSnap.data();
-              const updatedOptions = productData.options.map((opt: any) => {
-                if (opt.weight === p.weight) {
-                  return { ...opt, stock: (opt.stock || 0) + p.quantity };
-                }
-                return opt;
-              });
-              await updateDoc(productRef, { options: updatedOptions });
-            }
-          }
         }
       }
     } else {

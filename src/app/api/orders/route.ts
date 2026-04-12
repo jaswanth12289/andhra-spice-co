@@ -13,9 +13,10 @@ export async function POST(req: NextRequest) {
     if (!payload?.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const data = await req.json();
-    const { products, phoneNumber, shippingAddress, paymentMethod, totalAmount } = data;
+    const { products, phoneNumber, shippingAddress, paymentMethod } = data;
     
-    // Validate stock
+    // Server-side price validation & stock check
+    let serverTotal = 0;
     for (let p of products) {
       const productRef = doc(db, 'products', p.productId);
       const productSnap = await getDoc(productRef);
@@ -24,24 +25,30 @@ export async function POST(req: NextRequest) {
       const productData = productSnap.data();
       const option = productData.options?.find((o: any) => o.weight === p.weight);
       
-      if (option && option.stock < p.quantity) {
+      if (!option) return NextResponse.json({ error: `Invalid variant for ${p.name} (${p.weight})` }, { status: 400 });
+      if (option.stock < p.quantity) {
         return NextResponse.json({ error: `Insufficient stock for ${p.name} (${p.weight}). Only ${option.stock} left.` }, { status: 400 });
       }
+      serverTotal += option.price * p.quantity;
     }
 
-    // Decrement stock
-    for (let p of products) {
-      const productRef = doc(db, 'products', p.productId);
-      const productSnap = await getDoc(productRef);
-      if (productSnap.exists()) {
-        const productData = productSnap.data();
-        const updatedOptions = productData.options.map((opt: any) => {
-          if (opt.weight === p.weight) {
-            return { ...opt, stock: opt.stock - p.quantity };
-          }
-          return opt;
-        });
-        await updateDoc(productRef, { options: updatedOptions });
+    // Calculate delivery charge server-side
+    const deliveryCharge = serverTotal > 499 ? 0 : 60;
+    const totalAmount = serverTotal + deliveryCharge;
+
+    // Only deduct stock for COD (ONLINE deducts after payment confirmation)
+    if (paymentMethod === 'COD') {
+      for (let p of products) {
+        const productRef = doc(db, 'products', p.productId);
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists()) {
+          const productData = productSnap.data();
+          const updatedOptions = productData.options.map((opt: any) => {
+            if (opt.weight === p.weight) return { ...opt, stock: opt.stock - p.quantity };
+            return opt;
+          });
+          await updateDoc(productRef, { options: updatedOptions });
+        }
       }
     }
 
@@ -53,11 +60,12 @@ export async function POST(req: NextRequest) {
       phoneNumber,
       products,
       totalAmount,
-      deliveryCharge: data.deliveryCharge || 0,
+      deliveryCharge,
       shippingAddress,
       paymentMethod,
-      paymentStatus: 'Pending',
-      orderStatus: 'Placed',
+      paymentStatus: paymentMethod === 'COD' ? 'Pending' : 'Awaiting',
+      orderStatus: paymentMethod === 'COD' ? 'Placed' : 'Payment Pending',
+      stockDeducted: paymentMethod === 'COD',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -66,7 +74,7 @@ export async function POST(req: NextRequest) {
     const orderDocRef = await addDoc(ordersRef, orderData);
     const newOrder = { id: orderDocRef.id, ...orderData };
 
-    // Send email for COD
+    // Send email only for COD
     const userRef = doc(db, 'users', payload.userId);
     const userSnap = await getDoc(userRef);
     const user = userSnap.exists() ? userSnap.data() : null;
@@ -147,14 +155,14 @@ export async function GET(req: NextRequest) {
       orders = orders.filter((o: any) => o.userId === payload.userId);
     }
 
-    // Auto-resolve stale ONLINE+Pending orders by checking with Cashfree
+    // Auto-resolve stale ONLINE orders by checking with Cashfree
     const isSandbox = process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === 'sandbox';
     const cashfreeBaseUrl = isSandbox ? 'https://sandbox.cashfree.com/pg' : 'https://api.cashfree.com/pg';
     const thirtyMinMs = 30 * 60 * 1000;
 
     for (let i = 0; i < orders.length; i++) {
       const order: any = orders[i];
-      if (order.paymentMethod === 'ONLINE' && order.paymentStatus === 'Pending') {
+      if (order.paymentMethod === 'ONLINE' && (order.paymentStatus === 'Pending' || order.paymentStatus === 'Awaiting')) {
         const orderRef = doc(db, 'orders', order.id);
         const orderAgeMs = Date.now() - new Date(order.createdAt).getTime();
         let resolved = false;
@@ -173,53 +181,42 @@ export async function GET(req: NextRequest) {
           if (cfRes.ok) {
             const cfData = await cfRes.json();
             
-            if (cfData.order_status === 'PAID') {
-              await updateDoc(orderRef, { paymentStatus: 'Success', updatedAt: new Date().toISOString() });
-              orders[i] = { ...order, paymentStatus: 'Success' };
-              resolved = true;
-            } else if (cfData.order_status !== 'ACTIVE') {
-              // EXPIRED, TERMINATED, etc = cancel
-              await updateDoc(orderRef, { paymentStatus: 'Failed', orderStatus: 'Cancelled', updatedAt: new Date().toISOString() });
-              orders[i] = { ...order, paymentStatus: 'Failed', orderStatus: 'Cancelled' };
-              resolved = true;
-              
-              // Restore stock
+            if (cfData.order_status === 'PAID' && !order.stockDeducted) {
+              // Deduct stock now
               for (const p of order.products) {
                 const productRef = doc(db, 'products', p.productId);
                 const productSnap = await getDoc(productRef);
                 if (productSnap.exists()) {
                   const pd = productSnap.data();
                   const updatedOptions = pd.options.map((opt: any) => {
-                    if (opt.weight === p.weight) return { ...opt, stock: (opt.stock || 0) + p.quantity };
+                    if (opt.weight === p.weight) return { ...opt, stock: opt.stock - p.quantity };
                     return opt;
                   });
                   await updateDoc(productRef, { options: updatedOptions });
                 }
               }
+              await updateDoc(orderRef, { paymentStatus: 'Success', orderStatus: 'Placed', stockDeducted: true, updatedAt: new Date().toISOString() });
+              orders[i] = { ...order, paymentStatus: 'Success', orderStatus: 'Placed', stockDeducted: true };
+              resolved = true;
+            } else if (cfData.order_status === 'PAID' && order.stockDeducted) {
+              await updateDoc(orderRef, { paymentStatus: 'Success', orderStatus: 'Placed', updatedAt: new Date().toISOString() });
+              orders[i] = { ...order, paymentStatus: 'Success', orderStatus: 'Placed' };
+              resolved = true;
+            } else if (cfData.order_status !== 'ACTIVE') {
+              // EXPIRED, TERMINATED — no stock was deducted, just cancel
+              await updateDoc(orderRef, { paymentStatus: 'Failed', orderStatus: 'Cancelled', updatedAt: new Date().toISOString() });
+              orders[i] = { ...order, paymentStatus: 'Failed', orderStatus: 'Cancelled' };
+              resolved = true;
             }
-            // If ACTIVE & under 30 min, leave as Pending
           }
         } catch (e) {
           console.error("Cashfree recheck error for", order.customOrderId, e);
         }
 
-        // FALLBACK: If Cashfree couldn't resolve it and order is older than 30 min, force-cancel
+        // FALLBACK: order older than 30 min and still unresolved = force-cancel
         if (!resolved && orderAgeMs > thirtyMinMs) {
           await updateDoc(orderRef, { paymentStatus: 'Failed', orderStatus: 'Cancelled', updatedAt: new Date().toISOString() });
           orders[i] = { ...order, paymentStatus: 'Failed', orderStatus: 'Cancelled' };
-          
-          for (const p of order.products) {
-            const productRef = doc(db, 'products', p.productId);
-            const productSnap = await getDoc(productRef);
-            if (productSnap.exists()) {
-              const pd = productSnap.data();
-              const updatedOptions = pd.options.map((opt: any) => {
-                if (opt.weight === p.weight) return { ...opt, stock: (opt.stock || 0) + p.quantity };
-                return opt;
-              });
-              await updateDoc(productRef, { options: updatedOptions });
-            }
-          }
         }
       }
     }

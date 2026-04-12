@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyToken } from '@/lib/auth';
 import { db } from '@/lib/firestore';
 import { collection, doc, getDoc, getDocs, updateDoc, query, where } from 'firebase/firestore';
 import { sendOrderConfirmation } from '@/lib/email';
 
 // This endpoint re-checks Cashfree payment status for ONLINE orders that are still Pending.
-// Called when the user lands on the order page after abandoning or completing payment.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const token = req.cookies.get('token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const payload = await verifyToken(token) as any;
+    if (!payload?.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { id } = await params;
 
     // Find the order
@@ -37,7 +42,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     // Only re-check if it's ONLINE and still Pending
-    if (orderData.paymentMethod !== 'ONLINE' || orderData.paymentStatus !== 'Pending') {
+    if (orderData.paymentMethod !== 'ONLINE' || (orderData.paymentStatus !== 'Pending' && orderData.paymentStatus !== 'Awaiting')) {
       return NextResponse.json({ status: 'no_change', orderStatus: orderData.orderStatus, paymentStatus: orderData.paymentStatus });
     }
 
@@ -61,8 +66,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const cashfreeData = await cashfreeResponse.json();
 
     if (cashfreeData.order_status === 'PAID') {
+      // Payment confirmed — deduct stock now
+      if (!orderData.stockDeducted) {
+        for (let p of orderData.products) {
+          const productRef = doc(db, 'products', p.productId);
+          const productSnap = await getDoc(productRef);
+          if (productSnap.exists()) {
+            const productData = productSnap.data();
+            const updatedOptions = productData.options.map((opt: any) => {
+              if (opt.weight === p.weight) return { ...opt, stock: opt.stock - p.quantity };
+              return opt;
+            });
+            await updateDoc(productRef, { options: updatedOptions });
+          }
+        }
+      }
+
       await updateDoc(orderRef, {
         paymentStatus: 'Success',
+        orderStatus: 'Placed',
+        stockDeducted: true,
         updatedAt: new Date().toISOString()
       });
 
@@ -73,31 +96,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }
 
       return NextResponse.json({ status: 'paid', orderStatus: 'Placed', paymentStatus: 'Success' });
-    } else {
-      // ACTIVE, EXPIRED, or anything else = payment abandoned/failed
+    } else if (cashfreeData.order_status !== 'ACTIVE') {
+      // EXPIRED or similar — no stock was deducted, just cancel
       await updateDoc(orderRef, {
         paymentStatus: 'Failed',
         orderStatus: 'Cancelled',
         updatedAt: new Date().toISOString()
       });
 
-      // Restore stock
-      for (let p of orderData.products) {
-        const productRef = doc(db, 'products', p.productId);
-        const productSnap = await getDoc(productRef);
-        if (productSnap.exists()) {
-          const productData = productSnap.data();
-          const updatedOptions = productData.options.map((opt: any) => {
-            if (opt.weight === p.weight) {
-              return { ...opt, stock: (opt.stock || 0) + p.quantity };
-            }
-            return opt;
-          });
-          await updateDoc(productRef, { options: updatedOptions });
-        }
-      }
-
       return NextResponse.json({ status: 'failed', orderStatus: 'Cancelled', paymentStatus: 'Failed' });
+    } else {
+      // ACTIVE — payment window still open
+      return NextResponse.json({ status: 'active', orderStatus: 'Payment Pending', paymentStatus: 'Awaiting' });
     }
   } catch (error: any) {
     console.error("Payment recheck error:", error);
