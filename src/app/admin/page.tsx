@@ -10,6 +10,8 @@ export default function AdminOverview() {
   const [loading, setLoading] = useState(true);
   const [migrating, setMigrating] = useState(false);
   const [migrationResult, setMigrationResult] = useState<string | null>(null);
+  const [cleaning, setCleaning] = useState(false);
+  const [cleanResult, setCleanResult] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -211,6 +213,34 @@ export default function AdminOverview() {
             <span>{migrating ? 'Running...' : 'Run Refund Migration'}</span>
           </button>
           {migrationResult && <span className="text-sm text-gray-400">{migrationResult}</span>}
+        </div>
+        <div className="flex flex-wrap items-center gap-4 mt-4">
+          <button
+            onClick={async () => {
+              if (cleaning) return;
+              if (!confirm('This will permanently delete old broken test orders. Are you sure?')) return;
+              setCleaning(true);
+              setCleanResult(null);
+              try {
+                const res = await fetch('/api/admin/cleanup-legacy-orders', { method: 'POST', credentials: 'include' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+                setCleanResult(`✅ ${data.message}`);
+                toast.success(data.message);
+              } catch (err: any) {
+                setCleanResult(`❌ ${err.message}`);
+                toast.error(err.message);
+              } finally {
+                setCleaning(false);
+              }
+            }}
+            disabled={cleaning}
+            className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-bold py-2.5 px-6 rounded-xl transition flex items-center space-x-2"
+          >
+            {cleaning && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
+            <span>{cleaning ? 'Cleaning...' : 'Clean Old Test Orders'}</span>
+          </button>
+          {cleanResult && <span className="text-sm text-gray-400">{cleanResult}</span>}
         </div>
       </div>
     </div>
