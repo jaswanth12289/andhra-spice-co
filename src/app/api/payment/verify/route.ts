@@ -93,8 +93,9 @@ export async function GET(req: NextRequest) {
               }
             }
           }
-        } else {
-          // Payment Failed or Abandoned
+        } else if (cashfreeData.order_status !== 'ACTIVE') {
+          // Only mark as failed if Cashfree definitively says not PAID and not ACTIVE
+          // ACTIVE means payment window is still open — don't cancel prematurely
           const failLog = {
             event: 'PAYMENT_FAILED',
             cfOrderId: order_id,
@@ -110,6 +111,7 @@ export async function GET(req: NextRequest) {
             updatedAt: new Date().toISOString()
           });
         }
+        // If ACTIVE, leave as Awaiting/Payment Pending — user may still complete payment
       }
     } else {
       console.error("Cashfree verify error:", await cashfreeResponse.text());

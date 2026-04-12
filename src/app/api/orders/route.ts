@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
         if (productSnap.exists()) {
           const productData = productSnap.data();
           const updatedOptions = productData.options.map((opt: any) => {
-            if (opt.weight === p.weight) return { ...opt, stock: opt.stock - p.quantity };
+            if (opt.weight === p.weight) return { ...opt, stock: Math.max(0, (opt.stock || 0) - p.quantity) };
             return opt;
           });
           await updateDoc(productRef, { options: updatedOptions });
