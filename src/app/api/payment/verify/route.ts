@@ -7,10 +7,15 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const order_id = searchParams.get('order_id');
+    const original_order = searchParams.get('original_order');
 
     if (!order_id) {
       return NextResponse.redirect(new URL('/', req.url));
     }
+
+    // For retries, the Cashfree order_id is like ASC20260001_R1
+    // The actual DB order uses the original customOrderId
+    const dbOrderId = original_order || order_id.split('_R')[0];
 
     const isSandbox = process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === 'sandbox';
     const cashfreeBaseUrl = isSandbox ? 'https://sandbox.cashfree.com/pg' : 'https://api.cashfree.com/pg';
@@ -28,9 +33,9 @@ export async function GET(req: NextRequest) {
     if (cashfreeResponse.ok) {
       const cashfreeData = await cashfreeResponse.json();
       
-      // Find order by customOrderId
+      // Find order by customOrderId in our DB
       const ordersRef = collection(db, 'orders');
-      const q = query(ordersRef, where('customOrderId', '==', order_id));
+      const q = query(ordersRef, where('customOrderId', '==', dbOrderId));
       const snapshot = await getDocs(q);
       
       if (snapshot.empty) return NextResponse.redirect(new URL('/', req.url));
@@ -40,40 +45,61 @@ export async function GET(req: NextRequest) {
       const orderData = orderDoc.data();
       const orderRef = doc(db, 'orders', orderId);
 
-      // Only process if the order is still Pending
-      if (orderData.paymentStatus === 'Awaiting' || orderData.paymentStatus === 'Pending') {
+      // Only process if the order is not already paid
+      if (orderData.paymentStatus !== 'Success') {
         if (cashfreeData.order_status === 'PAID') {
-          // Payment Success — deduct stock now
-          for (let p of orderData.products) {
-            const productRef = doc(db, 'products', p.productId);
-            const productSnap = await getDoc(productRef);
-            if (productSnap.exists()) {
-              const productData = productSnap.data();
-              const updatedOptions = productData.options.map((opt: any) => {
-                if (opt.weight === p.weight) return { ...opt, stock: opt.stock - p.quantity };
-                return opt;
-              });
-              await updateDoc(productRef, { options: updatedOptions });
+          // Payment Success — deduct stock now if not already done
+          if (!orderData.stockDeducted) {
+            for (let p of orderData.products) {
+              const productRef = doc(db, 'products', p.productId);
+              const productSnap = await getDoc(productRef);
+              if (productSnap.exists()) {
+                const productData = productSnap.data();
+                const updatedOptions = productData.options.map((opt: any) => {
+                  if (opt.weight === p.weight) return { ...opt, stock: opt.stock - p.quantity };
+                  return opt;
+                });
+                await updateDoc(productRef, { options: updatedOptions });
+              }
             }
           }
+
+          // Log this payment verification
+          const verifyLog = {
+            event: 'PAYMENT_VERIFIED',
+            cfOrderId: order_id,
+            timestamp: new Date().toISOString(),
+            source: 'redirect'
+          };
 
           await updateDoc(orderRef, { 
             paymentStatus: 'Success',
             orderStatus: 'Placed',
             stockDeducted: true,
+            cashfreeOrderId: order_id,
+            paymentAttempts: [...(orderData.paymentAttempts || []), verifyLog],
             updatedAt: new Date().toISOString()
           });
 
           const userRef = doc(db, 'users', orderData.userId);
           const userSnap = await getDoc(userRef);
           if (userSnap.exists()) {
-            await sendOrderConfirmation(userSnap.data().email, { ...orderData, customOrderId: order_id }, userSnap.data());
+            await sendOrderConfirmation(userSnap.data().email, { ...orderData, customOrderId: dbOrderId }, userSnap.data());
           }
         } else {
-          // Payment Failed or Abandoned — no stock to restore (never deducted)
+          // Payment Failed or Abandoned
+          const failLog = {
+            event: 'PAYMENT_FAILED',
+            cfOrderId: order_id,
+            cfStatus: cashfreeData.order_status,
+            timestamp: new Date().toISOString(),
+            source: 'redirect'
+          };
+
           await updateDoc(orderRef, { 
             paymentStatus: 'Failed',
             orderStatus: 'Cancelled',
+            paymentAttempts: [...(orderData.paymentAttempts || []), failLog],
             updatedAt: new Date().toISOString()
           });
         }
@@ -82,8 +108,8 @@ export async function GET(req: NextRequest) {
       console.error("Cashfree verify error:", await cashfreeResponse.text());
     }
 
-    // Redirect to the order confirmation/status page
-    return NextResponse.redirect(new URL(`/order/${order_id}`, req.url));
+    // Always redirect to the original order page
+    return NextResponse.redirect(new URL(`/order/${dbOrderId}`, req.url));
 
   } catch (error: any) {
     console.error("Payment verification error:", error);

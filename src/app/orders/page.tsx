@@ -1,14 +1,30 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
-import { Package, Truck, CheckCircle, ExternalLink } from 'lucide-react';
+import { Package, Truck, CheckCircle, ExternalLink, XCircle, Clock, RefreshCw, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+
+function PaymentBadge({ status }: { status: string }) {
+  if (status === 'Success') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"><CheckCircle className="w-3 h-3 mr-1" />Paid</span>;
+  if (status === 'Failed') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"><XCircle className="w-3 h-3 mr-1" />Failed</span>;
+  if (status === 'Awaiting' || status === 'Pending') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"><Clock className="w-3 h-3 mr-1" />Awaiting</span>;
+  if (status === 'Refunded') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"><RefreshCw className="w-3 h-3 mr-1" />Refunded</span>;
+  return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400">{status}</span>;
+}
+
+function OrderStatusBadge({ status }: { status: string }) {
+  if (status === 'Cancelled') return <span className="text-red-500 font-bold">{status}</span>;
+  if (status === 'Delivered') return <span className="text-green-600 font-bold">{status}</span>;
+  if (status === 'Payment Pending') return <span className="text-yellow-500 font-bold">{status}</span>;
+  return <span className="text-spice-600 dark:text-spice-400 font-bold">{status}</span>;
+}
 
 export default function MyOrdersPage() {
   const { user, loading: authLoading } = useAuthStore();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   const fetchOrders = () => {
     fetch('/api/orders')
@@ -42,10 +58,36 @@ export default function MyOrdersPage() {
     }
   };
 
+  const handleRetry = async (orderId: string) => {
+    setRetryingId(orderId);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/retry`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      if (typeof window !== 'undefined' && (window as any).Cashfree) {
+        const cashfree = (window as any).Cashfree({ mode: data.cashfree_environment || 'production' });
+        cashfree.checkout({ paymentSessionId: data.payment_session_id, redirectTarget: "_self" });
+      } else {
+        toast.error("Payment gateway did not load. Please refresh.");
+        setRetryingId(null);
+      }
+    } catch (error: any) {
+      toast.error(error.message);
+      setRetryingId(null);
+    }
+  };
+
   const isCancellable = (order: any) => {
     if (order.orderStatus !== 'Placed' && order.orderStatus !== 'Packed') return false;
     const hoursSinceOrder = (Date.now() - new Date(order.createdAt).getTime()) / (1000 * 60 * 60);
     return hoursSinceOrder < 24;
+  };
+
+  const canRetry = (order: any) => {
+    return order.paymentMethod === 'ONLINE' && 
+      (order.paymentStatus === 'Failed' || order.paymentStatus === 'Awaiting' || order.paymentStatus === 'Pending') &&
+      order.orderStatus !== 'Cancelled';
   };
 
   if (authLoading || loading) return <div className="min-h-[60vh] flex items-center justify-center font-bold text-xl animate-pulse">Loading Vault...</div>;
@@ -81,9 +123,12 @@ export default function MyOrdersPage() {
                   <h3 className="text-xl font-bold mt-1 font-mono">Order {order.customOrderId}</h3>
                 </div>
                 
-                <div className="mt-4 md:mt-0 text-left md:text-right">
+                <div className="mt-4 md:mt-0 text-left md:text-right space-y-1">
                   <div className="text-2xl font-light">₹{order.totalAmount}</div>
-                  <div className="text-xs uppercase tracking-widest opacity-60 font-bold mt-1">{order.paymentMethod} • {order.paymentStatus}</div>
+                  <div className="flex items-center space-x-2 md:justify-end">
+                    <span className="text-xs uppercase tracking-widest opacity-60 font-bold">{order.paymentMethod}</span>
+                    <PaymentBadge status={order.paymentStatus} />
+                  </div>
                 </div>
               </div>
 
@@ -102,8 +147,11 @@ export default function MyOrdersPage() {
                   <h4 className="text-xs uppercase tracking-widest font-bold opacity-60 mb-4">Delivery Status</h4>
                   
                   <div className="flex items-center space-x-3 mb-4">
-                    {order.orderStatus === 'Delivered' ? <CheckCircle className="text-green-500" /> : <Truck className="text-spice-500" />}
-                    <span className="font-bold text-lg">{order.orderStatus}</span>
+                    {order.orderStatus === 'Delivered' ? <CheckCircle className="text-green-500" /> : 
+                     order.orderStatus === 'Cancelled' ? <XCircle className="text-red-500" /> :
+                     order.orderStatus === 'Payment Pending' ? <CreditCard className="text-yellow-500" /> :
+                     <Truck className="text-spice-500" />}
+                    <OrderStatusBadge status={order.orderStatus} />
                   </div>
 
                   {order.orderStatus === 'Shipped' && order.trackingId && (
@@ -126,9 +174,21 @@ export default function MyOrdersPage() {
                     </div>
                   )}
 
-                  <div className="mt-6 pt-4 border-t border-spice-200 dark:border-spice-800/50">
-                    <p className="text-xs opacity-70 mb-4">{order.shippingAddress.street}, {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}</p>
+                  <div className="mt-6 pt-4 border-t border-spice-200 dark:border-spice-800/50 space-y-3">
+                    <p className="text-xs opacity-70">{order.shippingAddress.street}, {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}</p>
                     
+                    {/* Retry Payment */}
+                    {canRetry(order) && (
+                      <button 
+                        onClick={() => handleRetry(order.customOrderId || order.id)}
+                        disabled={retryingId === (order.customOrderId || order.id)}
+                        className="w-full bg-gradient-to-r from-spice-600 to-orange-500 text-white py-2 rounded-lg font-bold transition text-sm flex items-center justify-center space-x-2 disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${retryingId === (order.customOrderId || order.id) ? 'animate-spin' : ''}`} />
+                        <span>Retry Payment</span>
+                      </button>
+                    )}
+
                     {isCancellable(order) && (
                       <button 
                         onClick={() => handleCancel(order.customOrderId || order.id)}

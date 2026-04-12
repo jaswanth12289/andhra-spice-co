@@ -36,6 +36,83 @@ export async function POST(req: NextRequest) {
     const deliveryCharge = serverTotal > 499 ? 0 : 60;
     const totalAmount = serverTotal + deliveryCharge;
 
+    // Anti-duplication: check if user already has a recent pending ONLINE order with same items
+    if (paymentMethod === 'ONLINE') {
+      const ordersRef = collection(db, 'orders');
+      const existingQ = query(ordersRef, where('userId', '==', payload.userId));
+      const existingSnap = await getDocs(existingQ);
+      
+      for (const existDoc of existingSnap.docs) {
+        const existing = existDoc.data();
+        if (
+          existing.paymentMethod === 'ONLINE' &&
+          (existing.paymentStatus === 'Awaiting' || existing.paymentStatus === 'Pending') &&
+          existing.orderStatus === 'Payment Pending' &&
+          (Date.now() - new Date(existing.createdAt).getTime()) < 10 * 60 * 1000 // within 10 min
+        ) {
+          // Check if same products
+          const sameProducts = JSON.stringify(existing.products.map((p: any) => `${p.productId}_${p.weight}_${p.quantity}`).sort()) ===
+            JSON.stringify(products.map((p: any) => `${p.productId}_${p.weight}_${p.quantity}`).sort());
+          
+          if (sameProducts) {
+            // Reuse existing order — generate new Cashfree session
+            const isSandbox = process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === 'sandbox';
+            const cashfreeBaseUrl = isSandbox ? 'https://sandbox.cashfree.com/pg' : 'https://api.cashfree.com/pg';
+            const domainUrl = process.env.NEXT_PUBLIC_URL || 'http://localhost:3000';
+            
+            const retryCount = (existing.paymentAttempts?.length || 0) + 1;
+            const cfOrderId = `${existing.customOrderId}_R${retryCount}`;
+            
+            const userRef = doc(db, 'users', payload.userId);
+            const userSnap = await getDoc(userRef);
+            const userEmail = userSnap.exists() ? userSnap.data().email : 'customer@example.com';
+
+            const cfRes = await fetch(`${cashfreeBaseUrl}/orders`, {
+              method: 'POST',
+              headers: {
+                'x-client-id': process.env.CASHFREE_APP_ID || '',
+                'x-client-secret': process.env.CASHFREE_SECRET_KEY || '',
+                'x-api-version': '2023-08-01',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify({
+                order_id: cfOrderId,
+                order_amount: existing.totalAmount,
+                order_currency: 'INR',
+                customer_details: {
+                  customer_id: payload.userId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 50),
+                  customer_phone: existing.phoneNumber,
+                  customer_email: userEmail
+                },
+                order_meta: {
+                  return_url: `${domainUrl}/api/payment/verify?order_id=${cfOrderId}&original_order=${existing.customOrderId}`
+                }
+              })
+            });
+
+            if (cfRes.ok) {
+              const cfData = await cfRes.json();
+              const attempt = { event: 'DEDUP_RETRY', cfOrderId, timestamp: new Date().toISOString(), source: 'checkout' };
+              
+              await updateDoc(doc(db, 'orders', existDoc.id), {
+                cashfreeOrderId: cfOrderId,
+                paymentAttempts: [...(existing.paymentAttempts || []), attempt],
+                updatedAt: new Date().toISOString()
+              });
+
+              return NextResponse.json({
+                id: existDoc.id,
+                ...existing,
+                payment_session_id: cfData.payment_session_id,
+                cashfree_environment: isSandbox ? 'sandbox' : 'production'
+              }, { status: 201 });
+            }
+          }
+        }
+      }
+    }
+
     // Only deduct stock for COD (ONLINE deducts after payment confirmation)
     if (paymentMethod === 'COD') {
       for (let p of products) {
@@ -66,12 +143,13 @@ export async function POST(req: NextRequest) {
       paymentStatus: paymentMethod === 'COD' ? 'Pending' : 'Awaiting',
       orderStatus: paymentMethod === 'COD' ? 'Placed' : 'Payment Pending',
       stockDeducted: paymentMethod === 'COD',
+      paymentAttempts: [{ event: 'ORDER_CREATED', timestamp: new Date().toISOString(), source: 'checkout' }],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
-    const ordersRef = collection(db, 'orders');
-    const orderDocRef = await addDoc(ordersRef, orderData);
+    const ordersCollRef = collection(db, 'orders');
+    const orderDocRef = await addDoc(ordersCollRef, orderData);
     const newOrder = { id: orderDocRef.id, ...orderData };
 
     // Send email only for COD
