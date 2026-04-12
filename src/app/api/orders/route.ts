@@ -330,7 +330,8 @@ export async function GET(req: NextRequest) {
         let resolved = false;
 
         try {
-          const cfRes = await fetch(`${cashfreeBaseUrl}/orders/${order.customOrderId}`, {
+          const cfLookupId = order.cashfreeOrderId || order.customOrderId;
+          const cfRes = await fetch(`${cashfreeBaseUrl}/orders/${cfLookupId}`, {
             method: 'GET',
             headers: {
               'x-client-id': process.env.CASHFREE_APP_ID || '',

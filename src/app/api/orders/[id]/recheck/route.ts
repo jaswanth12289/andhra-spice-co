@@ -49,7 +49,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const isSandbox = process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === 'sandbox';
     const cashfreeBaseUrl = isSandbox ? 'https://sandbox.cashfree.com/pg' : 'https://api.cashfree.com/pg';
 
-    const cashfreeResponse = await fetch(`${cashfreeBaseUrl}/orders/${orderData.customOrderId}`, {
+    const cfLookupId = orderData.cashfreeOrderId || orderData.customOrderId;
+
+    const cashfreeResponse = await fetch(`${cashfreeBaseUrl}/orders/${cfLookupId}`, {
       method: 'GET',
       headers: {
         'x-client-id': process.env.CASHFREE_APP_ID || '',
