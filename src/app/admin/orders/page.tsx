@@ -1,6 +1,16 @@
 'use client';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { CheckCircle, XCircle, Clock, RefreshCw, AlertTriangle, CreditCard } from 'lucide-react';
+
+function PaymentBadge({ status, method }: { status: string; method: string }) {
+  if (status === 'Success') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"><CheckCircle className="w-3 h-3 mr-1" />Paid</span>;
+  if (status === 'Failed') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"><XCircle className="w-3 h-3 mr-1" />Failed</span>;
+  if (status === 'Awaiting' || (status === 'Pending' && method === 'ONLINE')) return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"><Clock className="w-3 h-3 mr-1" />Unpaid</span>;
+  if (status === 'Pending' && method === 'COD') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"><CreditCard className="w-3 h-3 mr-1" />COD</span>;
+  if (status === 'Refunded') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"><RefreshCw className="w-3 h-3 mr-1" />Refunded</span>;
+  return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400">{status}</span>;
+}
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -27,7 +37,6 @@ export default function AdminOrders() {
     e.preventDefault();
     setUpdatingId(orderId);
     
-    // Find form data
     const formData = new FormData(e.target as HTMLFormElement);
     const data = Object.fromEntries(formData.entries());
 
@@ -49,6 +58,13 @@ export default function AdminOrders() {
     }
   };
 
+  const isUnpaidOnline = (order: any) => {
+    return order.paymentMethod === 'ONLINE' && 
+      order.paymentStatus !== 'Success' && 
+      order.paymentStatus !== 'Refunded' &&
+      order.orderStatus !== 'Cancelled';
+  };
+
   if (loading) return <div className="text-center py-20 font-bold animate-pulse text-xl">Loading Orders...</div>;
 
   return (
@@ -62,15 +78,28 @@ export default function AdminOrders() {
       ) : (
         <div className="space-y-6">
           {orders.map(order => (
-            <div key={order.id || order.customOrderId} className="bg-white dark:bg-spice-900 border border-spice-200 dark:border-spice-800 rounded-2xl shadow-sm p-6 overflow-hidden">
+            <div key={order.id || order.customOrderId} className={`bg-white dark:bg-spice-900 border rounded-2xl shadow-sm p-6 overflow-hidden ${
+              isUnpaidOnline(order) ? 'border-yellow-400 dark:border-yellow-600' : 'border-spice-200 dark:border-spice-800'
+            }`}>
+              {/* Unpaid ONLINE warning banner */}
+              {isUnpaidOnline(order) && (
+                <div className="flex items-center space-x-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/50 text-yellow-700 dark:text-yellow-400 px-4 py-2 rounded-lg mb-4 text-sm font-semibold">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  <span>ONLINE payment not received — do NOT ship this order until payment is confirmed.</span>
+                </div>
+              )}
+
               <div className="flex flex-col md:flex-row justify-between md:items-center border-b border-spice-200 dark:border-spice-800 pb-4 mb-4 gap-4">
                 <div>
-                  <h3 className="text-xl font-bold font-outfit flex items-center space-x-3">
+                  <h3 className="text-xl font-bold font-outfit flex items-center space-x-3 flex-wrap gap-2">
                     <span className="bg-spice-100 dark:bg-black px-3 py-1 rounded font-mono text-lg">{order.customOrderId}</span>
                     <span className={`px-3 py-1 rounded text-sm font-bold ${
                       order.orderStatus === 'Delivered' ? 'bg-green-100 text-green-700' : 
-                      order.orderStatus === 'Cancelled' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                      order.orderStatus === 'Cancelled' ? 'bg-red-100 text-red-700' : 
+                      order.orderStatus === 'Payment Pending' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-blue-100 text-blue-700'
                     }`}>{order.orderStatus}</span>
+                    <PaymentBadge status={order.paymentStatus} method={order.paymentMethod} />
                   </h3>
                   <p className="text-sm opacity-70 mt-2">{new Date(order.createdAt).toLocaleString()} &bull; {order.paymentMethod} &bull; ₹{order.totalAmount}</p>
                 </div>
@@ -99,6 +128,7 @@ export default function AdminOrders() {
                     <div>
                       <label className="block text-xs font-bold mb-1">Update Status</label>
                       <select name="orderStatus" defaultValue={order.orderStatus} className="w-full p-2 border border-spice-300 rounded dark:bg-spice-900 dark:border-spice-700 outline-none text-sm">
+                        <option value="Payment Pending">Payment Pending</option>
                         <option value="Placed">Placed</option>
                         <option value="Packed">Packed</option>
                         <option value="Shipped">Shipped</option>
