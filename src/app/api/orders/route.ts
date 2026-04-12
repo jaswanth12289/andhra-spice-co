@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     const deliveryCharge = serverTotal > 499 ? 0 : 60;
     const totalAmount = serverTotal + deliveryCharge;
 
-    // Anti-duplication: check if user already has a recent pending ONLINE order with same items
+    // Anti-duplication: cancel any existing pending ONLINE order with same items
     if (paymentMethod === 'ONLINE') {
       const ordersRef = collection(db, 'orders');
       const existingQ = query(ordersRef, where('userId', '==', payload.userId));
@@ -48,66 +48,19 @@ export async function POST(req: NextRequest) {
           existing.paymentMethod === 'ONLINE' &&
           (existing.paymentStatus === 'Awaiting' || existing.paymentStatus === 'Pending') &&
           existing.orderStatus === 'Payment Pending' &&
-          (Date.now() - new Date(existing.createdAt).getTime()) < 10 * 60 * 1000 // within 10 min
+          (Date.now() - new Date(existing.createdAt).getTime()) < 10 * 60 * 1000
         ) {
-          // Check if same products
           const sameProducts = JSON.stringify(existing.products.map((p: any) => `${p.productId}_${p.weight}_${p.quantity}`).sort()) ===
             JSON.stringify(products.map((p: any) => `${p.productId}_${p.weight}_${p.quantity}`).sort());
           
           if (sameProducts) {
-            // Reuse existing order — generate new Cashfree session
-            const isSandbox = process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT === 'sandbox';
-            const cashfreeBaseUrl = isSandbox ? 'https://sandbox.cashfree.com/pg' : 'https://api.cashfree.com/pg';
-            const domainUrl = process.env.NEXT_PUBLIC_URL || 'http://localhost:3000';
-            
-            const retrySuffix = Date.now().toString(36);
-            const cfOrderId = `${existing.customOrderId}_R${retrySuffix}`;
-            
-            const userRef = doc(db, 'users', payload.userId);
-            const userSnap = await getDoc(userRef);
-            const userEmail = userSnap.exists() ? userSnap.data().email : 'customer@example.com';
-
-            const cfRes = await fetch(`${cashfreeBaseUrl}/orders`, {
-              method: 'POST',
-              headers: {
-                'x-client-id': process.env.CASHFREE_APP_ID || '',
-                'x-client-secret': process.env.CASHFREE_SECRET_KEY || '',
-                'x-api-version': '2023-08-01',
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-              },
-              body: JSON.stringify({
-                order_id: cfOrderId,
-                order_amount: existing.totalAmount,
-                order_currency: 'INR',
-                customer_details: {
-                  customer_id: payload.userId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 50),
-                  customer_phone: existing.phoneNumber,
-                  customer_email: userEmail
-                },
-                order_meta: {
-                  return_url: `${domainUrl}/api/payment/verify?order_id=${cfOrderId}&original_order=${existing.customOrderId}`
-                }
-              })
+            // Cancel the old pending order — a fresh one will be created below
+            await updateDoc(doc(db, 'orders', existDoc.id), {
+              orderStatus: 'Cancelled',
+              paymentStatus: 'Failed',
+              paymentAttempts: [...(existing.paymentAttempts || []), { event: 'DEDUP_CANCELLED', timestamp: new Date().toISOString(), source: 'checkout' }],
+              updatedAt: new Date().toISOString()
             });
-
-            if (cfRes.ok) {
-              const cfData = await cfRes.json();
-              const attempt = { event: 'DEDUP_RETRY', cfOrderId, timestamp: new Date().toISOString(), source: 'checkout' };
-              
-              await updateDoc(doc(db, 'orders', existDoc.id), {
-                cashfreeOrderId: cfOrderId,
-                paymentAttempts: [...(existing.paymentAttempts || []), attempt],
-                updatedAt: new Date().toISOString()
-              });
-
-              return NextResponse.json({
-                id: existDoc.id,
-                ...existing,
-                payment_session_id: cfData.payment_session_id,
-                cashfree_environment: isSandbox ? 'sandbox' : 'production'
-              }, { status: 201 });
-            }
           }
         }
       }
