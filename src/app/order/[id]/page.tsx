@@ -29,34 +29,36 @@ function OrderTimeline({ status, paymentMethod }: { status: string; paymentMetho
   const steps = paymentMethod === 'COD' ? TIMELINE_STEPS.filter(s => s.key !== 'Payment Pending') : TIMELINE_STEPS;
 
   return (
-    <div className="flex items-center justify-between w-full max-w-xl mx-auto my-8">
-      {steps.map((step, i) => {
-        const StepIcon = step.icon;
-        const stepIndex = paymentMethod === 'COD' ? i + 1 : i;
-        const isActive = currentStep >= stepIndex;
-        const isCurrent = currentStep === stepIndex;
+    <div className="w-full overflow-x-auto hide-scrollbar pb-4 -mx-2 px-2 sm:mx-0 sm:px-0">
+      <div className="flex items-center justify-between min-w-[500px] sm:min-w-0 w-full max-w-xl mx-auto my-4 sm:my-8">
+        {steps.map((step, i) => {
+          const StepIcon = step.icon;
+          const stepIndex = paymentMethod === 'COD' ? i + 1 : i;
+          const isActive = currentStep >= stepIndex;
+          const isCurrent = currentStep === stepIndex;
 
-        return (
-          <div key={step.key} className="flex items-center flex-1 last:flex-none">
-            <div className="flex flex-col items-center relative">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${
-                isActive ? 'bg-green-500 text-white shadow-lg shadow-green-500/30' : 
-                'bg-spice-100 dark:bg-spice-800 text-spice-400'
-              } ${isCurrent ? 'ring-4 ring-green-500/30 scale-110' : ''}`}>
-                <StepIcon className="w-5 h-5" />
+          return (
+            <div key={step.key} className="flex items-center flex-1 last:flex-none">
+              <div className="flex flex-col items-center relative w-16 sm:w-20">
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-500 relative z-10 ${
+                  isActive ? 'bg-green-500 text-white shadow-lg shadow-green-500/30' : 
+                  'bg-spice-100 dark:bg-spice-800 text-spice-400'
+                } ${isCurrent ? 'ring-4 ring-green-500/30 scale-110' : ''}`}>
+                  <StepIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
+                <span className={`text-[9px] sm:text-[10px] mt-2 font-bold uppercase tracking-wider text-center ${
+                  isActive ? 'text-green-600 dark:text-green-400' : 'text-spice-400'
+                }`}>{step.label}</span>
               </div>
-              <span className={`text-[10px] mt-2 font-bold uppercase tracking-wider ${
-                isActive ? 'text-green-600 dark:text-green-400' : 'text-spice-400'
-              }`}>{step.label}</span>
+              {i < steps.length - 1 && (
+                <div className={`flex-1 h-0.5 -mx-2 sm:mx-0 rounded transition-all duration-500 w-full ${
+                  currentStep > stepIndex ? 'bg-green-500' : 'bg-spice-200 dark:bg-spice-700'
+                }`} />
+              )}
             </div>
-            {i < steps.length - 1 && (
-              <div className={`flex-1 h-0.5 mx-2 rounded transition-all duration-500 ${
-                currentStep > stepIndex ? 'bg-green-500' : 'bg-spice-200 dark:bg-spice-700'
-              }`} />
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -168,8 +170,8 @@ export default function OrderSuccessPage({ params }: { params: Promise<{ id: str
   const isPaymentPending = order.orderStatus === 'Payment Pending' || order.paymentStatus === 'Awaiting';
 
   return (
-    <div className="max-w-4xl mx-auto px-4 pt-28 pb-12">
-      <div className="bg-white dark:bg-spice-900 border border-spice-200 dark:border-spice-800 p-8 sm:p-12 rounded-3xl shadow-lg">
+    <div className="max-w-4xl mx-auto px-4 pt-24 pb-12">
+      <div className="bg-white dark:bg-spice-900 border border-spice-200 dark:border-spice-800 p-4 sm:p-8 md:p-12 rounded-3xl shadow-lg">
         
         {/* Header */}
         <div className="text-center mb-6">

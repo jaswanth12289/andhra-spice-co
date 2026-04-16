@@ -116,7 +116,7 @@ export default function ProductsPage() {
               >
                 <Link href={`/products/${product.id}`} className="flex-1 flex flex-col h-full block">
                   <div className="h-[300px] relative overflow-hidden">
-                    <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-60 group-hover:opacity-90" />
+                    <img src={product.images?.length > 0 ? product.images[0] : (product.imageUrl || '/placeholder.png')} onError={(e) => (e.currentTarget.src = 'https://placehold.co/400x300?text=No+Img')} alt={product.name} loading="lazy" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-60 group-hover:opacity-90" />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/40 to-transparent" />
                     {(!product.options || product.options.every((o: any) => o.stock === 0)) && (
                       <div className="absolute top-6 right-6">

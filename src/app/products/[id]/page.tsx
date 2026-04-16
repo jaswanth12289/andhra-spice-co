@@ -3,8 +3,9 @@
 import { useEffect, useState, use } from 'react';
 import { useCartStore } from '@/store/useCartStore';
 import toast from 'react-hot-toast';
-import { ShoppingCart, ArrowLeft } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -13,10 +14,15 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [selectedWeight, setSelectedWeight] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
+
   const cartItems = useCartStore(state => state.items);
   const addItem = useCartStore(state => state.addItem);
 
   useEffect(() => {
+    setCurrentSlide(0); // Reset on mount/change
     fetch(`/api/products/${id}`)
       .then(res => res.ok ? res.json() : Promise.reject())
       .then(data => {
@@ -38,6 +44,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const currentQuantityInCart = currentCartItem?.quantity || 0;
   const availableToAdd = activeOption.stock - currentQuantityInCart;
 
+  const productImages = product.images?.length > 0 
+    ? product.images 
+    : (product.imageUrl ? [product.imageUrl] : ["/placeholder.png"]);
+
   const handleAddToCart = () => {
     if (quantity > availableToAdd) {
       toast.error(`Only ${availableToAdd} more available limit for this variant.`);
@@ -50,11 +60,22 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       quantity: quantity,
       stock: activeOption.stock,
       weight: activeOption.weight,
-      imageUrl: product.imageUrl
+      imageUrl: productImages[0]
     });
     toast.success('Secured in cart.');
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => setTouchStart(e.targetTouches[0].clientX);
+  const handleTouchMove = (e: React.TouchEvent) => setTouchEnd(e.targetTouches[0].clientX);
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    if (distance > 50 && currentSlide < productImages.length - 1) setCurrentSlide(p => p + 1);
+    if (distance < -50 && currentSlide > 0) setCurrentSlide(p => p - 1);
+    setTouchStart(0);
+    setTouchEnd(0);
+  };
+  
   return (
     <div className="min-h-screen bg-[#050505] text-white selection:bg-spice-500 selection:text-white">
       <Link href="/products" className="absolute top-6 sm:top-28 left-4 java sm:left-12 z-50 flex items-center space-x-2 text-gray-400 hover:text-white transition-colors uppercase tracking-widest text-[10px] sm:text-xs font-bold drop-shadow-md bg-black/60 px-4 py-2 mt-20 sm:mt-0 rounded-full backdrop-blur-md border border-white/10">
@@ -62,10 +83,56 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       </Link>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen">
-        {/* Left Side: Cinematic Image */}
-        <div className="h-[50vh] lg:h-screen w-full relative">
-          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent lg:bg-gradient-to-r lg:from-transparent lg:via-[#050505]/20 lg:to-[#050505] z-10" />
-          <img src={product.imageUrl} className="w-full h-full object-cover opacity-70" alt={product.name} />
+        {/* Left Side: Cinematic Image Slider */}
+        <div className="h-[50vh] lg:h-screen w-full relative overflow-hidden group"
+             onTouchStart={handleTouchStart}
+             onTouchMove={handleTouchMove}
+             onTouchEnd={handleTouchEnd}>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent lg:bg-gradient-to-r lg:from-transparent lg:via-[#050505]/20 lg:to-[#050505] z-10 pointer-events-none" />
+          
+          <AnimatePresence initial={false}>
+            <motion.img 
+              key={currentSlide}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 0.7, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.4 }}
+              src={productImages[currentSlide]} 
+              onError={(e: any) => (e.currentTarget.src = 'https://placehold.co/800x800?text=No+Img')}
+              loading="lazy"
+              className="absolute inset-0 w-full h-full object-cover" 
+              alt={`${product.name} - Image ${currentSlide + 1}`} 
+            />
+          </AnimatePresence>
+
+          {/* Controls */}
+          {productImages.length > 1 && (
+            <>
+              <button 
+                onClick={() => setCurrentSlide(p => Math.max(0, p - 1))}
+                className={`absolute left-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/40 text-white backdrop-blur-md border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity hidden lg:block ${currentSlide === 0 ? 'hidden' : ''}`}
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button 
+                onClick={() => setCurrentSlide(p => Math.min(productImages.length - 1, p + 1))}
+                className={`absolute right-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/40 text-white backdrop-blur-md border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity hidden lg:block ${currentSlide === productImages.length - 1 ? 'hidden' : ''}`}
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+
+              <div className="absolute bottom-12 lg:bottom-8 left-1/2 -translate-x-1/2 z-20 flex space-x-2">
+                {productImages.map((_: any, idx: number) => (
+                  <button 
+                    key={idx}
+                    onClick={() => setCurrentSlide(idx)}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${currentSlide === idx ? 'w-6 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/70'}`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
           {activeOption.stock === 0 && (
             <div className="absolute top-40 left-1/2 -translate-x-1/2 lg:translate-x-0 lg:left-12 z-20">
               <span className="bg-red-600/50 backdrop-blur border border-red-500 text-white px-6 py-2 rounded-full uppercase tracking-[0.3em] text-xs font-bold shadow-[0_0_20px_rgba(220,38,38,0.3)]">Variant Depleted</span>

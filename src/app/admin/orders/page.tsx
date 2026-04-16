@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { CheckCircle, XCircle, Clock, RefreshCw, AlertTriangle, CreditCard } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, RefreshCw, AlertTriangle, CreditCard, Trash2 } from 'lucide-react';
 
 function PaymentBadge({ status, method }: { status: string; method: string }) {
   if (status === 'Success') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"><CheckCircle className="w-3 h-3 mr-1" />Paid</span>;
@@ -16,6 +16,7 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOrders();
@@ -55,6 +56,24 @@ export default function AdminOrders() {
       toast.error(error.message);
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleDelete = async (orderId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this order? This action cannot be undone.')) return;
+    
+    setDeletingId(orderId);
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error);
+      
+      toast.success('Order deleted successfully');
+      setOrders(orders.filter(o => o.id !== orderId));
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -164,6 +183,17 @@ export default function AdminOrders() {
                     {(order.orderStatus === 'Shipped' || order.trackingId) && (
                       <p className="text-xs text-orange-600 dark:text-orange-400 font-bold text-center">Saving will trigger an Email Notification to the customer.</p>
                     )}
+                    <div className="pt-4 mt-2 border-t border-spice-200 dark:border-spice-800">
+                      <button 
+                        type="button" 
+                        onClick={() => handleDelete(order.id)} 
+                        disabled={deletingId === order.id}
+                        className="w-full flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400 font-bold py-2 rounded transition"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        {deletingId === order.id ? 'Deleting...' : 'Delete Order'}
+                      </button>
+                    </div>
                   </form>
                 </div>
               </div>

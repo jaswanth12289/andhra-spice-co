@@ -8,7 +8,7 @@ export default function AdminProducts() {
   const [loading, setLoading] = useState(true);
   
   const defaultOption = { weight: '100g', price: '', stock: '' };
-  const defaultForm = { id: '', name: '', description: '', category: 'Whole Spices', imageUrl: '', options: [defaultOption] };
+  const defaultForm = { id: '', name: '', description: '', category: 'Whole Spices', images: [''], options: [defaultOption] };
   
   const [form, setForm] = useState(defaultForm);
   const [isEditing, setIsEditing] = useState(false);
@@ -45,10 +45,32 @@ export default function AdminProducts() {
     setForm({ ...form, options: newOptions });
   };
 
+  const handleImageChange = (idx: number, value: string) => {
+    const newImages = [...(form.images || [])];
+    newImages[idx] = value;
+    setForm({ ...form, images: newImages });
+  };
+
+  const addImage = () => {
+    if ((form.images || []).length >= 5) return toast.error('Maximum 5 images allowed per product');
+    setForm({ ...form, images: [...(form.images || []), ''] });
+  };
+
+  const removeImage = (idx: number) => {
+    if ((form.images || []).length === 1) return toast.error('Product must have at least one image');
+    const newImages = (form.images || []).filter((_, i) => i !== idx);
+    setForm({ ...form, images: newImages });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (form.options.some(opt => !opt.weight || !opt.price || opt.stock === '')) {
       return toast.error('Please fill all option fields');
+    }
+
+    const cleanImages = (form.images || []).map(img => img.trim()).filter(img => img !== "");
+    if (cleanImages.length === 0) {
+      return toast.error('Please provide at least one valid image URL');
     }
 
     try {
@@ -57,8 +79,10 @@ export default function AdminProducts() {
       
       const { id, ...restForm } = form;
       
+      
       const payload = {
         ...restForm,
+        images: cleanImages,
         options: form.options.map(opt => ({
           weight: opt.weight,
           price: Number(opt.price),
@@ -146,9 +170,32 @@ export default function AdminProducts() {
               <option value="Blended Masalas">Blended Masalas</option>
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-bold mb-1">Image URL</label>
-            <input type="url" required value={form.imageUrl} onChange={e => setForm({...form, imageUrl: e.target.value})} placeholder="https://example.com/image.jpg" className="w-full p-3 border border-spice-300 rounded outline-none focus:ring-2 focus:ring-spice-600 dark:bg-black dark:text-white dark:border-spice-700" />
+          <div className="md:col-span-2 border border-spice-200 dark:border-spice-800 rounded-xl p-6 bg-spice-50 dark:bg-black/50">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold font-outfit text-lg">Product Images (Max 5)</h3>
+              <span className="text-xs font-bold text-spice-500 uppercase tracking-widest">{form.images?.length || 1} / 5</span>
+            </div>
+            <div className="space-y-4">
+              {(form.images || []).map((img, idx) => (
+                <div key={idx} className="flex flex-col sm:flex-row items-center gap-3 bg-white dark:bg-black p-3 border border-spice-200 dark:border-spice-800 rounded-lg">
+                  <div className="flex-1 w-full">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Image URL #{idx + 1}</label>
+                    <input type="url" required={(form.images || []).length === 1} value={img} onChange={e => handleImageChange(idx, e.target.value)} placeholder="https://example.com/image.jpg" className="w-full p-3 border border-spice-300 rounded outline-none focus:ring-2 focus:ring-spice-600 dark:bg-spice-900 dark:text-white dark:border-spice-700" />
+                  </div>
+                  <div className="flex items-end self-end sm:self-auto h-full pb-1 sm:pb-0">
+                    <button type="button" onClick={() => removeImage(idx)} className="p-3 mt-4 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition" title="Remove Image">
+                      <Trash2 className="w-6 h-6"/>
+                    </button>
+                  </div>
+                </div>
+              ))}
+              
+              {(form.images || []).length < 5 && (
+                <button type="button" onClick={addImage} className="w-full py-4 border-2 border-dashed border-spice-300 dark:border-spice-700 text-spice-600 dark:text-spice-400 font-bold hover:bg-spice-100 dark:hover:bg-spice-900/30 rounded-xl transition flex items-center justify-center">
+                  <PlusCircle className="w-5 h-5 mr-2"/> Add Another Image URL Link
+                </button>
+              )}
+            </div>
           </div>
           <div className="md:col-span-2 flex justify-end space-x-4 mt-2">
             {isEditing && (
@@ -180,7 +227,7 @@ export default function AdminProducts() {
                 {products.map(p => (
                   <tr key={p.id} className="hover:bg-spice-50 dark:hover:bg-black/50 transition">
                     <td className="p-4 font-bold flex items-center space-x-3">
-                      <img src={p.imageUrl} alt="" className="w-10 h-10 rounded object-cover" />
+                      <img src={(p.images && p.images.length > 0) ? p.images[0] : (p.imageUrl || '/placeholder.png')} onError={(e) => (e.currentTarget.src = 'https://placehold.co/100x100?text=No+Img')} alt="" className="w-10 h-10 rounded object-cover" />
                       <span>{p.name}</span>
                     </td>
                     <td className="p-4 opacity-80">{p.category}</td>
@@ -202,6 +249,7 @@ export default function AdminProducts() {
                         setIsEditing(true); 
                         setForm({ 
                           ...p, 
+                          images: p.images?.length > 0 ? p.images : (p.imageUrl ? [p.imageUrl] : ['']),
                           options: p.options && p.options.length > 0 ? p.options : [defaultOption] // fallback for old data
                         }); 
                       }} className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition"><Pencil className="w-4 h-4" /></button>

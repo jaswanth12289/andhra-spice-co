@@ -133,3 +133,24 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const token = req.cookies.get('token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const payload = await verifyToken(token) as any;
+    if (payload.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    const { id } = await params;
+    const { deleteDoc } = await import('firebase/firestore');
+
+    const orderRef = doc(db, 'orders', id);
+    const orderSnap = await getDoc(orderRef);
+    if (!orderSnap.exists()) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    await deleteDoc(orderRef);
+    return NextResponse.json({ success: true, message: 'Order deleted successfully' });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

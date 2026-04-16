@@ -10,7 +10,8 @@ export interface IProduct {
   description: string;
   options: IOption[];
   category: 'Whole Spices' | 'Powdered Spices' | 'Blended Masalas';
-  imageUrl: string;
+  imageUrl?: string; // Fallback for old products
+  images?: string[]; // Array of image URLs
   createdAt?: string;
   updatedAt?: string;
 }
