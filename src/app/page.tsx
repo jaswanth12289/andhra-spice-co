@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Leaf, Flame, Home, Asterisk } from 'lucide-react';
+import { Leaf, Flame, Home as HomeIcon, Asterisk } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -89,7 +89,7 @@ export default function Home() {
             className="relative rounded-3xl overflow-hidden bg-gradient-to-b from-white/5 to-transparent border border-white/5 p-8 flex flex-col justify-between group hover:border-spice-500/30 transition-colors duration-500"
           >
             <div className="bg-white/5 border border-white/10 w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-4 group-hover:bg-white group-hover:text-black transition-colors shadow-lg">
-              <Home className="w-7 h-7" />
+              <HomeIcon className="w-7 h-7" />
             </div>
             <div>
               <h3 className="text-2xl font-bold font-[family-name:var(--font-outfit)] text-white mb-2">Purely Homemade</h3>
