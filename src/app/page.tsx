@@ -86,27 +86,31 @@ export default function Home() {
 
           <motion.div 
             initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}
-            className="relative rounded-3xl overflow-hidden bg-gradient-to-b from-white/5 to-transparent border border-white/5 p-8 flex flex-col justify-between group hover:border-spice-500/30 transition-colors duration-500"
+            className="relative rounded-3xl overflow-hidden bg-black border border-white/5 shadow-2xl group"
           >
-            <div className="bg-white/5 border border-white/10 w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-4 group-hover:bg-white group-hover:text-black transition-colors shadow-lg">
-              <HomeIcon className="w-7 h-7" />
-            </div>
-            <div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent z-10" />
+            <img src="https://images.unsplash.com/photo-1507048331197-7d4ac70811cf?w=800&q=80" alt="Homemade spices" className="w-full h-full object-cover opacity-50 group-hover:scale-105 group-hover:opacity-70 transition-all duration-700" />
+            <div className="absolute bottom-0 left-0 p-8 z-20 w-full">
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 w-12 h-12 rounded-full flex items-center justify-center mb-4 text-white group-hover:bg-white group-hover:text-black transition-colors shadow-lg">
+                <HomeIcon className="w-6 h-6" />
+              </div>
               <h3 className="text-2xl font-bold font-[family-name:var(--font-outfit)] text-white mb-2">Purely Homemade</h3>
-              <p className="text-gray-400 leading-relaxed">Made with care and love in our home kitchen, bringing authentic Andhra flavors to your table.</p>
+              <p className="text-gray-300 leading-relaxed">Made with care and love in our home kitchen, bringing authentic Andhra flavors to your table.</p>
             </div>
           </motion.div>
 
           <motion.div 
             initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }}
-            className="relative rounded-3xl overflow-hidden bg-gradient-to-b from-white/5 to-transparent border border-white/5 p-8 flex flex-col justify-between group hover:border-spice-500/30 transition-colors duration-500"
+            className="relative rounded-3xl overflow-hidden bg-black border border-white/5 shadow-2xl group"
           >
-            <div className="bg-white/5 border border-white/10 w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-4 group-hover:bg-spice-500 group-hover:border-spice-400 transition-colors shadow-lg">
-              <Leaf className="w-7 h-7" />
-            </div>
-            <div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent z-10" />
+            <img src="https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=800&q=80" alt="Natural fresh spices" className="w-full h-full object-cover opacity-50 group-hover:scale-105 group-hover:opacity-70 transition-all duration-700" />
+            <div className="absolute bottom-0 left-0 p-8 z-20 w-full">
+              <div className="bg-spice-600/20 backdrop-blur-md border border-spice-500/30 w-12 h-12 rounded-full flex items-center justify-center mb-4 text-spice-400 group-hover:bg-spice-500 group-hover:text-white transition-colors shadow-lg">
+                <Leaf className="w-6 h-6" />
+              </div>
               <h3 className="text-2xl font-bold font-[family-name:var(--font-outfit)] text-white mb-2">No Preservatives</h3>
-              <p className="text-gray-400 leading-relaxed">100% natural spices with no chemicals, no artificial colors — just pure ingredients.</p>
+              <p className="text-gray-300 leading-relaxed">100% natural spices with no chemicals, no artificial colors — just pure ingredients.</p>
             </div>
           </motion.div>
 
