@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Leaf, Flame, ShieldCheck, Asterisk } from 'lucide-react';
+import { Leaf, Flame, Home, Asterisk } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -89,11 +89,11 @@ export default function Home() {
             className="relative rounded-3xl overflow-hidden bg-gradient-to-b from-white/5 to-transparent border border-white/5 p-8 flex flex-col justify-between group hover:border-spice-500/30 transition-colors duration-500"
           >
             <div className="bg-white/5 border border-white/10 w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-4 group-hover:bg-white group-hover:text-black transition-colors shadow-lg">
-              <ShieldCheck className="w-7 h-7" />
+              <Home className="w-7 h-7" />
             </div>
             <div>
-              <h3 className="text-2xl font-bold font-[family-name:var(--font-outfit)] text-white mb-2">Zero Adulteration</h3>
-              <p className="text-gray-400 leading-relaxed">Lab tested and guaranteed free from artificial colors or sawdust fillers.</p>
+              <h3 className="text-2xl font-bold font-[family-name:var(--font-outfit)] text-white mb-2">Purely Homemade</h3>
+              <p className="text-gray-400 leading-relaxed">Made with care and love in our home kitchen, bringing authentic Andhra flavors to your table.</p>
             </div>
           </motion.div>
 
@@ -105,8 +105,8 @@ export default function Home() {
               <Leaf className="w-7 h-7" />
             </div>
             <div>
-              <h3 className="text-2xl font-bold font-[family-name:var(--font-outfit)] text-white mb-2">Ethical Sourcing</h3>
-              <p className="text-gray-400 leading-relaxed">We work directly with local farmers paying beyond fair-trade premiums.</p>
+              <h3 className="text-2xl font-bold font-[family-name:var(--font-outfit)] text-white mb-2">No Preservatives</h3>
+              <p className="text-gray-400 leading-relaxed">100% natural spices with no chemicals, no artificial colors — just pure ingredients.</p>
             </div>
           </motion.div>
 
