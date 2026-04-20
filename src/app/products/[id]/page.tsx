@@ -152,64 +152,69 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             <span className="text-spice-500 uppercase tracking-[0.3em] font-bold text-[10px] sm:text-xs mb-4 flex items-center">{product.category}</span>
             <h1 className="text-4xl sm:text-6xl font-bold font-[family-name:var(--font-outfit)] leading-none mb-6">{product.name}</h1>
             
-            <div className="text-3xl sm:text-4xl font-light text-white mb-8 tracking-tight">₹{activeOption.price}</div>
+            <div className="text-3xl sm:text-4xl font-light text-white mb-6 tracking-tight">₹{activeOption.price}</div>
             
+            {/* Purchase Card */}
+            <div className="bg-[#0a0a0a] border border-white/5 p-5 sm:p-8 rounded-3xl mb-10 shadow-2xl">
+              {/* Weight Selectors */}
+              {product.options && product.options.length > 0 && (
+                <div className="mb-8">
+                  <p className="text-[10px] sm:text-xs text-spice-400 tracking-widest uppercase font-bold mb-4">Select Size</p>
+                  <div className="flex flex-wrap gap-2 sm:gap-3">
+                    {product.options.map((opt: any) => (
+                      <button
+                        key={opt.weight}
+                        onClick={() => { setSelectedWeight(opt.weight); setQuantity(1); }}
+                        className={`px-5 py-2 sm:px-6 sm:py-3 rounded-full font-bold text-xs sm:text-sm tracking-widest uppercase transition-all duration-300 border ${
+                          selectedWeight === opt.weight 
+                            ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.4)]' 
+                            : 'bg-transparent text-gray-400 border-white/20 hover:border-white/50 hover:text-white'
+                        }`}
+                      >
+                        {opt.weight}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeOption.stock > 0 ? (
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-4">
+                    {/* Glass Quantity Adjuster */}
+                    <div className="flex items-center bg-white/5 border border-white/10 rounded-full h-14 sm:h-16 w-full sm:w-auto px-1 sm:px-2 shadow-inner justify-between sm:justify-start">
+                      <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-12 h-12 flex items-center justify-center text-xl hover:bg-white/10 rounded-full transition-colors">-</button>
+                      <span className="w-12 text-center text-xl font-light">{quantity}</span>
+                      <button onClick={() => setQuantity(Math.min(availableToAdd, quantity + 1))} className="w-12 h-12 flex items-center justify-center text-xl hover:bg-white/10 rounded-full transition-colors">+</button>
+                    </div>
+                    
+                    {/* Add to cart */}
+                    <button 
+                      onClick={handleAddToCart}
+                      disabled={availableToAdd === 0}
+                      className="h-14 sm:h-16 w-full sm:flex-1 bg-white hover:bg-gray-200 disabled:bg-white/10 disabled:text-white/30 text-black rounded-full font-bold flex justify-center items-center gap-2 sm:gap-3 transition-all duration-300 shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
+                    >
+                      <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <span className="uppercase tracking-widest text-[10px] sm:text-sm">{availableToAdd === 0 ? 'Limit Reached' : 'Add to Cart'}</span>
+                    </button>
+                  </div>
+                  <p className="text-[10px] sm:text-xs text-gray-500 tracking-widest uppercase font-bold text-center sm:text-left">Stock: <span className="text-gray-300">{activeOption.stock}</span> units available</p>
+                </div>
+              ) : (
+                <div className="bg-red-900/10 border border-red-500/20 text-red-500 p-6 rounded-2xl font-bold text-center tracking-widest uppercase text-sm">
+                  Out of Stock
+                </div>
+              )}
+            </div>
+
             <div className="h-px w-full bg-white/10 mb-8"></div>
             
-            <p className="text-lg text-gray-400 font-light leading-relaxed mb-10">
-              {product.description}
-            </p>
-
-            {/* Weight Selectors */}
-            {product.options && product.options.length > 0 && (
-              <div className="mb-10">
-                <p className="text-[10px] sm:text-xs text-spice-400 tracking-widest uppercase font-bold mb-3">Select Specification</p>
-                <div className="flex flex-wrap gap-2 sm:gap-3">
-                  {product.options.map((opt: any) => (
-                    <button
-                      key={opt.weight}
-                      onClick={() => { setSelectedWeight(opt.weight); setQuantity(1); }}
-                      className={`px-5 py-2 sm:px-6 sm:py-3 rounded-full font-bold text-xs sm:text-sm tracking-widest uppercase transition-all duration-300 border ${
-                        selectedWeight === opt.weight 
-                          ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.4)]' 
-                          : 'bg-transparent text-gray-400 border-white/20 hover:border-white/50 hover:text-white'
-                      }`}
-                    >
-                      {opt.weight}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {activeOption.stock > 0 ? (
-              <div className="space-y-6 sm:space-y-8 mt-2">
-                <p className="text-[10px] sm:text-xs text-spice-400 tracking-widest uppercase font-bold">In Vault: <span className="text-white">{activeOption.stock}</span></p>
-                
-                <div className="flex flex-row items-center gap-3 sm:gap-6">
-                  {/* Glass Quantity Adjuster */}
-                  <div className="flex items-center bg-white/5 border border-white/10 rounded-full h-14 sm:h-16 w-auto px-1 sm:px-2 shadow-inner">
-                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 sm:w-12 h-10 sm:h-12 flex items-center justify-center text-xl hover:bg-white/10 rounded-full transition-colors">-</button>
-                    <span className="w-8 sm:w-12 text-center text-lg sm:text-xl font-light">{quantity}</span>
-                    <button onClick={() => setQuantity(Math.min(availableToAdd, quantity + 1))} className="w-10 sm:w-12 h-10 sm:h-12 flex items-center justify-center text-xl hover:bg-white/10 rounded-full transition-colors">+</button>
-                  </div>
-                  
-                  {/* Premium Add to cart */}
-                  <button 
-                    onClick={handleAddToCart}
-                    disabled={availableToAdd === 0}
-                    className="h-14 sm:h-16 flex-1 bg-white hover:bg-gray-200 disabled:bg-white/10 disabled:text-white/30 text-black rounded-full font-bold flex justify-center items-center gap-2 sm:gap-3 transition-all duration-300 shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
-                  >
-                    <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
-                    <span className="uppercase tracking-widest text-[10px] sm:text-sm">{availableToAdd === 0 ? 'Limit Reached' : 'Add to Collection'}</span>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-red-900/10 border border-red-500/20 text-red-500 p-6 rounded-2xl font-bold text-center tracking-widest uppercase text-sm">
-                Awaiting Harvest
-              </div>
-            )}
+            <div className="mb-10">
+              <h3 className="text-sm text-spice-400 uppercase tracking-widest font-bold mb-4">Product Details</h3>
+              <p className="text-base sm:text-lg text-gray-400 font-light leading-relaxed">
+                {product.description}
+              </p>
+            </div>
           </div>
         </div>
       </div>
