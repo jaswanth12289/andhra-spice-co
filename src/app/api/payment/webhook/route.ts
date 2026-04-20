@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firestore';
-import { collection, doc, getDoc, getDocs, updateDoc, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, updateDoc, query, where, runTransaction } from 'firebase/firestore';
 import { sendOrderConfirmation } from '@/lib/email';
 import crypto from 'crypto';
 
@@ -55,22 +55,6 @@ export async function POST(req: NextRequest) {
       }
 
       // Deduct stock if not already done (idempotency via stockDeducted flag)
-      if (!orderData.stockDeducted) {
-        for (const p of orderData.products) {
-          const productRef = doc(db, 'products', p.productId);
-          const productSnap = await getDoc(productRef);
-          if (productSnap.exists()) {
-            const pd = productSnap.data();
-            const updatedOptions = pd.options.map((opt: any) => {
-              if (opt.weight === p.weight) return { ...opt, stock: Math.max(0, (opt.stock || 0) - p.quantity) };
-              return opt;
-            });
-            await updateDoc(productRef, { options: updatedOptions });
-          }
-        }
-      }
-
-      // Update order
       const webhookLog = {
         event: eventType,
         cfOrderId,
@@ -78,18 +62,58 @@ export async function POST(req: NextRequest) {
         source: 'webhook'
       };
 
-      await updateDoc(orderRef, {
-        paymentStatus: 'Success',
-        orderStatus: 'Placed',
-        stockDeducted: true,
-        cashfreeOrderId: cfOrderId,
-        paymentAttempts: [...(orderData.paymentAttempts || []), webhookLog],
-        updatedAt: new Date().toISOString()
+      // Perform stock deduction and status update atomically
+      let emailNeeded = false;
+      let freshOrderData: any = null;
+
+      await runTransaction(db, async (transaction) => {
+        const orderSnap = await transaction.get(orderRef);
+        if (!orderSnap.exists()) throw new Error("Order vanished during processing");
+        
+        const freshOrder = orderSnap.data();
+        freshOrderData = freshOrder;
+        
+        if (freshOrder.paymentStatus === 'Success') {
+          return; // Already processed by another worker concurrent to us
+        }
+        
+        const productDocs = [];
+        if (!freshOrder.stockDeducted) {
+          for (const p of freshOrder.products) {
+            const productRef = doc(db, 'products', p.productId);
+            const productSnap = await transaction.get(productRef);
+            if (productSnap.exists()) {
+              productDocs.push({ ref: productRef, pd: productSnap.data(), reqP: p });
+            }
+          }
+        }
+        
+        // Writes
+        if (!freshOrder.stockDeducted) {
+          for (const item of productDocs) {
+            const updatedOptions = item.pd.options.map((opt: any) => {
+              if (opt.weight === item.reqP.weight) return { ...opt, stock: Math.max(0, (opt.stock || 0) - item.reqP.quantity) };
+              return opt;
+            });
+            transaction.update(item.ref, { options: updatedOptions });
+          }
+        }
+        
+        transaction.update(orderRef, {
+          paymentStatus: 'Success',
+          orderStatus: 'Placed',
+          stockDeducted: true,
+          cashfreeOrderId: cfOrderId,
+          paymentAttempts: [...(freshOrder.paymentAttempts || []), webhookLog],
+          updatedAt: new Date().toISOString()
+        });
+        
+        emailNeeded = !freshOrder.emailSent;
       });
 
       // Send confirmation email only if not already sent
-      if (!orderData.emailSent) {
-        const userRef = doc(db, 'users', orderData.userId);
+      if (emailNeeded && freshOrderData) {
+        const userRef = doc(db, 'users', freshOrderData.userId);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
           try {

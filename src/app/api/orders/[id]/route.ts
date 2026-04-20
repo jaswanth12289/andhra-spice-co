@@ -109,6 +109,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
+    // Tracking info guard
+    const newStatus = data.orderStatus || orderData.orderStatus;
+    const newCourier = data.courierType !== undefined ? data.courierType : orderData.courierType;
+    const newTracking = data.trackingId !== undefined ? data.trackingId : orderData.trackingId;
+
+    if (newStatus === 'Shipped' && (!newCourier || !newTracking)) {
+      return NextResponse.json({ error: 'Cannot mark as Shipped without both Courier Type and Tracking ID' }, { status: 400 });
+    }
+
     // Normal update for shipping/tracking etc — only allow whitelisted fields
     const allowedFields = ['orderStatus', 'courierType', 'trackingId', 'adminNotes'];
     const safeUpdate: any = { updatedAt: new Date().toISOString() };
@@ -118,13 +127,27 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     await updateDoc(orderRef, safeUpdate);
     
     const updatedSnap = await getDoc(orderRef);
-    const updatedOrder = { id: updatedSnap.id, ...updatedSnap.data() };
+    const updatedOrder = { id: updatedSnap.id, ...(updatedSnap.data() as any) } as any;
 
-    if (data.orderStatus === 'Shipped' || data.trackingId) {
-      const userRef = doc(db, 'users', orderData.userId);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        await sendShippingUpdate(userSnap.data().email, updatedOrder, userSnap.data());
+    const userRef = doc(db, 'users', orderData.userId);
+    const userSnap = await getDoc(userRef);
+    const userOpt = userSnap.exists() ? userSnap.data() : null;
+
+    if (userOpt) {
+      // Shipped Email Delivery
+      if (updatedOrder.orderStatus === 'Shipped' && !orderData.shippedEmailSent && orderData.orderStatus !== 'Delivered') {
+        const { sendShippingUpdate } = await import('@/lib/email');
+        await sendShippingUpdate(userOpt.email, updatedOrder, userOpt);
+        await updateDoc(orderRef, { shippedEmailSent: true });
+        updatedOrder.shippedEmailSent = true;
+      }
+      
+      // Delivered Email Delivery
+      if (updatedOrder.orderStatus === 'Delivered' && !orderData.deliveredEmailSent) {
+        const { sendDeliveredEmail } = await import('@/lib/email');
+        await sendDeliveredEmail(userOpt.email, updatedOrder, userOpt);
+        await updateDoc(orderRef, { deliveredEmailSent: true });
+        updatedOrder.deliveredEmailSent = true;
       }
     }
 

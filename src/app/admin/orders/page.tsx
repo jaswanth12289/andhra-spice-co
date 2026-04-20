@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { CheckCircle, XCircle, Clock, RefreshCw, AlertTriangle, CreditCard, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, RefreshCw, AlertTriangle, CreditCard, Trash2, Download, ShieldCheck } from 'lucide-react';
 
 function PaymentBadge({ status, method }: { status: string; method: string }) {
   if (status === 'Success') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"><CheckCircle className="w-3 h-3 mr-1" />Paid</span>;
@@ -18,19 +18,41 @@ export default function AdminOrders() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   useEffect(() => {
     fetchOrders();
   }, []);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (cursor?: string) => {
     try {
-      const res = await fetch('/api/orders');
+      const url = cursor 
+        ? `/api/orders?limit=10&cursor=${encodeURIComponent(cursor)}`
+        : `/api/orders?limit=10`;
+        
+      const res = await fetch(url);
       const data = await res.json();
-      setOrders(Array.isArray(data) ? data : []);
+      const newOrders = Array.isArray(data) ? data : [];
+      
+      if (newOrders.length < 10) setHasMore(false);
+      
+      if (cursor) {
+        setOrders(prev => {
+          // Prevent duplicates incase of strict mode double invocation
+          const existingIds = new Set(prev.map(o => o.id));
+          const uniqueNew = newOrders.filter(o => !existingIds.has(o.id));
+          return [...prev, ...uniqueNew];
+        });
+      } else {
+        setOrders(newOrders);
+        if (newOrders.length === 10) setHasMore(true);
+      }
     } catch (error) {
       toast.error('Failed to load orders');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -51,7 +73,8 @@ export default function AdminOrders() {
       if (!res.ok) throw new Error(result.error);
 
       toast.success('Order status updated');
-      fetchOrders();
+      // Update locally to avoid wiping out pagination
+      setOrders(orders.map(o => o.id === orderId ? { ...o, ...data } : o));
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -84,11 +107,61 @@ export default function AdminOrders() {
       order.orderStatus !== 'Cancelled';
   };
 
+  const handleExportCSV = () => {
+    if (orders.length === 0) return toast.error('No orders to export');
+
+    const headers = ['Order ID', 'Date', 'Customer Phone', 'Payment Mode', 'Payment Status', 'Order Status', 'Total Amount', 'Items'];
+    const rows = orders.map(o => {
+      const itemsStr = o.products.map((p: any) => `${p.quantity}x ${p.name} (${p.weight})`).join('; ');
+      return [
+        o.customOrderId,
+        `"${new Date(o.createdAt).toLocaleString()}"`,
+        `"${o.phoneNumber}"`,
+        o.paymentMethod,
+        o.paymentStatus,
+        o.orderStatus,
+        o.totalAmount,
+        `"${itemsStr}"`
+      ].join(',');
+    });
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `AndhraSpice_Orders_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (loading) return <div className="text-center py-20 font-bold animate-pulse text-xl">Loading Orders...</div>;
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
-      <h1 className="text-3xl font-bold font-outfit mb-6">Order Management</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
+        <h1 className="text-3xl font-bold font-outfit">Order Management</h1>
+        <div className="flex space-x-3">
+          <button 
+            onClick={handleExportCSV}
+            className="bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 px-4 py-2 rounded-xl font-bold transition flex items-center space-x-2 text-sm shadow"
+          >
+            <Download className="w-4 h-4" />
+            <span>Export Visible Orders (CSV)</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Operational Safety Banner */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 p-4 rounded-xl text-sm text-blue-800 dark:text-blue-300">
+        <h3 className="font-bold flex items-center mb-1"><ShieldCheck className="w-4 h-4 mr-2" /> Database Backup & Export Protocol</h3>
+        <p className="opacity-90 leading-relaxed">
+          <strong>Daily Export:</strong> Use the button above to export visible orders locally to CSV format.<br/>
+          <strong>Full Cloud Backup:</strong> To perform a complete structural database backup, navigate to the <a href="https://console.cloud.google.com/firestore/databases/-default-/export" target="_blank" className="underline font-bold">Google Cloud Console</a> &rarr; Firestore &rarr; Import/Export and schedule a bucket export.
+        </p>
+      </div>
 
       {orders.length === 0 ? (
         <div className="bg-white dark:bg-spice-900 p-10 text-center rounded-2xl border border-spice-200">
@@ -199,6 +272,22 @@ export default function AdminOrders() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {hasMore && orders.length > 0 && (
+        <div className="flex justify-center mt-8">
+          <button 
+            onClick={() => {
+              setLoadingMore(true);
+              fetchOrders(orders[orders.length - 1].createdAt);
+            }}
+            disabled={loadingMore}
+            className="bg-spice-100 hover:bg-spice-200 text-spice-800 dark:bg-spice-900/50 dark:text-spice-200 dark:hover:bg-spice-800 px-6 py-2 rounded-full font-bold transition flex items-center space-x-2"
+          >
+            {loadingMore && <RefreshCw className="w-4 h-4 animate-spin" />}
+            <span>{loadingMore ? 'Loading...' : 'Load More Orders'}</span>
+          </button>
         </div>
       )}
     </div>

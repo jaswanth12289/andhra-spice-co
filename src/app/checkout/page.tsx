@@ -22,6 +22,7 @@ export default function CheckoutPage() {
   const [submitted, setSubmitted] = useState(false);
   const [pendingOrder, setPendingOrder] = useState<any>(null);
   const [resuming, setResuming] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -131,6 +132,7 @@ export default function CheckoutPage() {
       if (!res.ok) throw new Error(data.error);
 
       if (typeof window !== 'undefined' && (window as any).Cashfree) {
+        setIsRedirecting(true);
         const cashfree = (window as any).Cashfree({ mode: data.cashfree_environment || 'production' });
         cashfree.checkout({ paymentSessionId: data.payment_session_id, redirectTarget: "_self" });
       } else {
@@ -191,6 +193,7 @@ export default function CheckoutPage() {
       // If online payment, redirect to Cashfree
       if (paymentMethod === 'ONLINE' && data.payment_session_id) {
         if (typeof window !== 'undefined' && (window as any).Cashfree) {
+          setIsRedirecting(true);
           const cashfree = (window as any).Cashfree({
             mode: data.cashfree_environment || 'sandbox',
           });
@@ -218,6 +221,18 @@ export default function CheckoutPage() {
   return (
     <>
       <Script src="https://sdk.cashfree.com/js/v3/cashfree.js" strategy="lazyOnload" />
+      
+      {/* Strict Payment Redirect Overlay */}
+      {isRedirecting && (
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex flex-col justify-center items-center">
+          <div className="bg-white dark:bg-spice-900 p-8 rounded-3xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4 border border-spice-200 dark:border-spice-700">
+            <div className="w-12 h-12 border-4 border-spice-200 border-t-spice-600 rounded-full animate-spin mb-6"></div>
+            <h3 className="text-xl font-bold font-outfit text-gray-900 dark:text-white text-center mb-2">Secure Redirect</h3>
+            <p className="text-center text-gray-600 dark:text-gray-400 text-sm font-medium">Please do not refresh or close this page while we connect to the payment gateway.</p>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto px-4 pt-32 pb-12">
 
         {/* Pending Payment Banner */}

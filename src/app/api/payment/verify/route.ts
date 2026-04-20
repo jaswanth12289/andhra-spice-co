@@ -110,6 +110,9 @@ export async function GET(req: NextRequest) {
             paymentAttempts: [...(orderData.paymentAttempts || []), failLog],
             updatedAt: new Date().toISOString()
           });
+
+          // Explicit failure redirect
+          return NextResponse.redirect(new URL(`/checkout/failed?orderId=${dbOrderId}`, req.url));
         }
         // If ACTIVE, leave as Awaiting/Payment Pending — user may still complete payment
       }
@@ -117,11 +120,11 @@ export async function GET(req: NextRequest) {
       console.error("Cashfree verify error:", await cashfreeResponse.text());
     }
 
-    // Always redirect to the original order page
+    // Always redirect to the original order page for Success or Active
     return NextResponse.redirect(new URL(`/order/${dbOrderId}`, req.url));
 
   } catch (error: any) {
     console.error("Payment verification error:", error);
-    return NextResponse.redirect(new URL('/', req.url));
+    return NextResponse.redirect(new URL('/checkout/failed', req.url));
   }
 }

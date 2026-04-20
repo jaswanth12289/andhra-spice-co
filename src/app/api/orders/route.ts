@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { db } from '@/lib/firestore';
-import { collection, addDoc, getDocs, getDoc, doc, updateDoc, query, where, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs, getDoc, doc, updateDoc, query, where, orderBy, runTransaction, limit, startAfter } from 'firebase/firestore';
 import { generateOrderId } from '@/lib/orderUtils';
 import { sendOrderConfirmation } from '@/lib/email';
 
@@ -127,22 +127,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Only deduct stock for COD (ONLINE deducts after payment confirmation)
-    if (paymentMethod === 'COD') {
-      for (let p of products) {
-        const productRef = doc(db, 'products', p.productId);
-        const productSnap = await getDoc(productRef);
-        if (productSnap.exists()) {
-          const productData = productSnap.data();
-          const updatedOptions = productData.options.map((opt: any) => {
-            if (opt.weight === p.weight) return { ...opt, stock: Math.max(0, (opt.stock || 0) - p.quantity) };
-            return opt;
-          });
-          await updateDoc(productRef, { options: updatedOptions });
-        }
-      }
-    }
-
     const customOrderId = await generateOrderId();
+    const ordersCollRef = collection(db, 'orders');
+    const orderDocRef = doc(ordersCollRef); // Auto-generate ID
 
     const orderData = {
       customOrderId,
@@ -161,8 +148,45 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString()
     };
 
-    const ordersCollRef = collection(db, 'orders');
-    const orderDocRef = await addDoc(ordersCollRef, orderData);
+    // ATOMIC: Check stock and create order
+    await runTransaction(db, async (transaction) => {
+      const productDocs = [];
+      // 1. Read all product docs
+      for (const p of products) {
+        const productRef = doc(db, 'products', p.productId);
+        const productSnap = await transaction.get(productRef);
+        if (!productSnap.exists()) throw new Error(`Product not found: ${p.name}`);
+        productDocs.push({ ref: productRef, data: productSnap.data(), reqProduct: p });
+      }
+
+      // 2. Validate stock
+      for (const item of productDocs) {
+        const { data, reqProduct } = item;
+        const option = data.options?.find((o: any) => o.weight === reqProduct.weight);
+        if (!option) throw new Error(`Invalid variant for ${reqProduct.name} (${reqProduct.weight})`);
+        
+        // Always validate stock to ensure we didn't oversell between the initial check and now
+        if (option.stock < reqProduct.quantity) {
+          throw new Error(`Insufficient stock for ${reqProduct.name} (${reqProduct.weight}). Only ${option.stock} left.`);
+        }
+      }
+
+      // 3. Write stock updates if COD
+      if (paymentMethod === 'COD') {
+        for (const item of productDocs) {
+          const { ref, data, reqProduct } = item;
+          const updatedOptions = data.options.map((opt: any) => {
+            if (opt.weight === reqProduct.weight) return { ...opt, stock: Math.max(0, (opt.stock || 0) - reqProduct.quantity) };
+            return opt;
+          });
+          transaction.update(ref, { options: updatedOptions });
+        }
+      }
+
+      // 4. Create the final order doc
+      transaction.set(orderDocRef, orderData);
+    });
+
     const newOrder = { id: orderDocRef.id, ...orderData };
 
     // Send email only for COD
@@ -280,13 +304,24 @@ export async function GET(req: NextRequest) {
     const payload = await verifyToken(token) as any;
     
     const ordersRef = collection(db, 'orders');
-    const snapshot = await getDocs(ordersRef);
-    let orders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-
+    let qArgs: any[] = [];
+    
     // Filter by user if not admin
     if (payload.role !== 'admin') {
-      orders = orders.filter((o: any) => o.userId === payload.userId);
+      qArgs.push(where('userId', '==', payload.userId));
+    } else {
+      qArgs.push(orderBy('createdAt', 'desc'));
+      
+      const limitVal = parseInt(req.nextUrl.searchParams.get('limit') || '0', 10);
+      const cursor = req.nextUrl.searchParams.get('cursor');
+      
+      if (limitVal > 0) qArgs.push(limit(limitVal));
+      if (cursor) qArgs.push(startAfter(cursor));
     }
+
+    const q = query(ordersRef, ...qArgs);
+    const snapshot = await getDocs(q);
+    let orders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
     // SELF-HEAL: Fix ONLINE orders where paymentStatus=Success but orderStatus still stuck on "Payment Pending"
     for (let i = 0; i < orders.length; i++) {
@@ -382,8 +417,10 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Sort by createdAt descending
-    orders.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    // Sort by createdAt descending for users who bypassed the orderBy
+    if (payload.role !== 'admin') {
+      orders.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    }
 
     return NextResponse.json(orders);
   } catch (error: any) {

@@ -1,39 +1,50 @@
 import { NextResponse } from 'next/server';
 import { signToken } from '@/lib/auth';
 import { db } from '@/lib/firestore';
-import { collection, query, where, getDocs, addDoc, doc, setDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, doc, setDoc, runTransaction } from 'firebase/firestore';
 
 const FIREBASE_API_KEY = 'AIzaSyDPqnVzbrdcx-ISu0mWcyLNkq5FvbW8sCQ';
 
 // Admin email - first login from this email gets admin role
 const ADMIN_EMAILS = ['2300031385ird@gmail.com', 'jaswanthsatuluri@gmail.com'];
 
-const rateLimitMap = new Map<string, { count: number; timestamp: number }>();
-
-function isRateLimited(ip: string): boolean {
+async function checkDistributedRateLimit(identifier: string): Promise<boolean> {
   const limit = 5;
   const windowMs = 60 * 1000;
   const now = Date.now();
-  const record = rateLimitMap.get(ip);
-
-  if (record) {
-    if (now - record.timestamp < windowMs) {
-      if (record.count >= limit) return true;
-      record.count += 1;
-      return false;
-    }
-  }
   
-  rateLimitMap.set(ip, { count: 1, timestamp: now });
-  return false;
+  // Sanitize identifier for Firestore document ID constraints
+  const safeId = identifier.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const rateLimitRef = doc(db, 'rate_limits_auth', safeId);
+  
+  try {
+    return await runTransaction(db, async (transaction) => {
+      const docSnap = await transaction.get(rateLimitRef);
+      if (!docSnap.exists()) {
+        transaction.set(rateLimitRef, { count: 1, timestamp: now });
+        return false;
+      }
+      
+      const record = docSnap.data();
+      if (now - record.timestamp < windowMs) {
+        if (record.count >= limit) return true; // Rate limited
+        transaction.update(rateLimitRef, { count: record.count + 1 });
+        return false;
+      } else {
+        // Expired window, reset
+        transaction.update(rateLimitRef, { count: 1, timestamp: now });
+        return false;
+      }
+    });
+  } catch (error) {
+    console.error("Rate limit check failed", error);
+    return false; // Fail open to not block legitimate logins if DB spikes
+  }
 }
 
 export async function POST(req: Request) {
   try {
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
-    if (isRateLimited(ip)) {
-      return NextResponse.json({ error: 'Too many login attempts. Try again later.' }, { status: 429 });
-    }
 
     const { firebaseToken, name } = await req.json();
 
@@ -56,6 +67,13 @@ export async function POST(req: Request) {
     const authUser = verifyData.users[0];
     const email = authUser.email;
     const displayName = authUser.displayName || name || 'Spice Enthusiast';
+
+    // Implement Distributed Rate Limiting via IP + Email
+    const identifier = `${ip}_${email}`;
+    const rateLimited = await checkDistributedRateLimit(identifier);
+    if (rateLimited) {
+      return NextResponse.json({ error: 'Too many login attempts. Try again later.' }, { status: 429 });
+    }
 
     // Check if user exists in Firestore
     const usersRef = collection(db, 'users');

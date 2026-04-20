@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Leaf, Flame, Home as HomeIcon, Asterisk } from 'lucide-react';
+import { Leaf, Flame, Home as HomeIcon, Asterisk, ShieldCheck, Truck, PackageCheck } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -53,7 +53,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.8 }}
-            className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6"
+            className="mt-12 flex flex-col items-center justify-center gap-6"
           >
             <Link href="/products" className="group relative inline-flex items-center justify-center px-8 py-4 bg-white text-black font-bold text-lg rounded-full overflow-hidden transition-transform active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:shadow-[0_0_60px_rgba(255,255,255,0.3)]">
               <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-spice-400 to-spice-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
@@ -61,6 +61,22 @@ export default function Home() {
                 Explore Collection <Asterisk className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" />
               </span>
             </Link>
+
+            {/* Trust Badges */}
+            <div className="flex flex-wrap justify-center gap-4 sm:gap-8 mt-6">
+              <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
+                <ShieldCheck className="w-4 h-4 text-spice-500" />
+                <span>Secure Checkout</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
+                <Truck className="w-4 h-4 text-spice-500" />
+                <span>Cash on Delivery</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
+                <PackageCheck className="w-4 h-4 text-spice-500" />
+                <span>Farm to Table</span>
+              </div>
+            </div>
           </motion.div>
         </div>
       </section>

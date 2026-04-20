@@ -156,8 +156,8 @@ export default function OrderSuccessPage({ params }: { params: Promise<{ id: str
 
   const getTrackingLink = () => {
     if (!order.trackingId) return null;
-    if (order.courierType === 'DTDC') return `https://www.dtdc.in/tracking?awb=${order.trackingId}`;
-    if (order.courierType === 'India Post') return `https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx`;
+    if (order.courierType === 'DTDC') return `https://www.dtdc.in/tracking/default.aspx?type=0&strCnno=${order.trackingId}`;
+    if (order.courierType === 'India Post') return `https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx?articleNumber=${order.trackingId}`;
     return null;
   };
 

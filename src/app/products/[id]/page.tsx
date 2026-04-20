@@ -5,6 +5,7 @@ import { useCartStore } from '@/store/useCartStore';
 import toast from 'react-hot-toast';
 import { ShoppingCart, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -17,6 +18,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [currentSlide, setCurrentSlide] = useState(0);
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
+  const [imgErrors, setImgErrors] = useState<{[key: number]: boolean}>({});
 
   const cartItems = useCartStore(state => state.items);
   const addItem = useCartStore(state => state.addItem);
@@ -44,9 +46,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const currentQuantityInCart = currentCartItem?.quantity || 0;
   const availableToAdd = activeOption.stock - currentQuantityInCart;
 
-  const productImages = product.images?.length > 0 
+  const rawImages = product.images?.length > 0 
     ? product.images 
-    : (product.imageUrl ? [product.imageUrl] : ["/placeholder.png"]);
+    : (product.imageUrl ? [product.imageUrl] : []);
+    
+  // Sanitize out empty strings or malformed invalid domains proactively
+  const productImages = rawImages.filter((img: string) => img && typeof img === 'string' && img.trim().startsWith('http'));
+  if (productImages.length === 0) productImages.push("https://placehold.co/800x800?text=No+Img");
 
   const handleAddToCart = () => {
     if (quantity > availableToAdd) {
@@ -76,6 +82,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     setTouchEnd(0);
   };
   
+  // TEMPORARY LOGGING FOR DEBUGGING
+  console.log("DEBUG_IMAGES: productImages array:", productImages);
+  console.log("DEBUG_IMAGES: active slide src:", productImages[currentSlide]);
+  console.log("DEBUG_IMAGES: imgErrors object:", imgErrors);
+  console.log("DEBUG_IMAGES: Next.js Image current rendering src:", imgErrors[currentSlide] ? 'https://placehold.co/800x800.png?text=No+Img' : (productImages[currentSlide] || 'https://placehold.co/800x800.png?text=No+Img'));
+  
   return (
     <div className="min-h-screen bg-[#050505] text-white selection:bg-spice-500 selection:text-white">
       <Link href="/products" className="absolute top-6 sm:top-28 left-4 java sm:left-12 z-50 flex items-center space-x-2 text-gray-400 hover:text-white transition-colors uppercase tracking-widest text-[10px] sm:text-xs font-bold drop-shadow-md bg-black/60 px-4 py-2 mt-20 sm:mt-0 rounded-full backdrop-blur-md border border-white/10">
@@ -85,7 +97,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen">
         {/* Left Side: Cinematic Image Slider */}
         <div className="w-full relative overflow-hidden group bg-[#0a0a0a]"
-             style={{ minHeight: '340px', maxHeight: '50vh', height: 'auto' }}
+             style={{ minHeight: '340px', height: '50vh' }}
              onTouchStart={handleTouchStart}
              onTouchMove={handleTouchMove}
              onTouchEnd={handleTouchEnd}>
@@ -96,19 +108,25 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           <div className="hidden lg:block absolute inset-0 lg:bg-gradient-to-r lg:from-transparent lg:via-[#050505]/20 lg:to-[#050505] z-10 pointer-events-none" />
           
           <AnimatePresence initial={false}>
-            <motion.img 
+            <motion.div 
               key={currentSlide}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.4 }}
-              src={productImages[currentSlide]} 
-              onError={(e: any) => (e.currentTarget.src = 'https://placehold.co/800x800?text=No+Img')}
-              loading="lazy"
-              className="w-full h-full object-contain py-6 px-4"
+              className="absolute inset-0 flex items-center justify-center py-6 px-4"
               style={{ filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.5))' }}
-              alt={`${product.name} - Image ${currentSlide + 1}`} 
-            />
+            >
+              <Image 
+                src={imgErrors[currentSlide] ? 'https://placehold.co/800x800.png?text=No+Img' : (productImages[currentSlide] || 'https://placehold.co/800x800.png?text=No+Img')} 
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                priority={currentSlide === 0}
+                className="object-contain p-4"
+                alt={`${product.name} - Image ${currentSlide + 1}`} 
+                onError={() => setImgErrors(prev => ({ ...prev, [currentSlide]: true }))}
+              />
+            </motion.div>
           </AnimatePresence>
 
           {/* Controls */}
