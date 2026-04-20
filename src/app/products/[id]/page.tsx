@@ -84,23 +84,29 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       
       <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen">
         {/* Left Side: Cinematic Image Slider */}
-        <div className="h-[50vh] lg:h-screen w-full relative overflow-hidden group"
+        <div className="w-full relative overflow-hidden group bg-[#0a0a0a]"
+             style={{ minHeight: '340px', maxHeight: '50vh', height: 'auto' }}
              onTouchStart={handleTouchStart}
              onTouchMove={handleTouchMove}
              onTouchEnd={handleTouchEnd}>
-          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent lg:bg-gradient-to-r lg:from-transparent lg:via-[#050505]/20 lg:to-[#050505] z-10 pointer-events-none" />
+          {/* Light gradient only at bottom to separate image from content */}
+          <div className="absolute bottom-0 left-0 right-0 h-24 lg:h-0 z-10 pointer-events-none"
+               style={{ background: 'linear-gradient(to top, rgba(5,5,5,0.5), transparent)' }} />
+          {/* Desktop side gradient */}
+          <div className="hidden lg:block absolute inset-0 lg:bg-gradient-to-r lg:from-transparent lg:via-[#050505]/20 lg:to-[#050505] z-10 pointer-events-none" />
           
           <AnimatePresence initial={false}>
             <motion.img 
               key={currentSlide}
               initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 0.7, x: 0 }}
+              animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.4 }}
               src={productImages[currentSlide]} 
               onError={(e: any) => (e.currentTarget.src = 'https://placehold.co/800x800?text=No+Img')}
               loading="lazy"
-              className="absolute inset-0 w-full h-full object-cover" 
+              className="w-full h-full object-contain py-6 px-4"
+              style={{ filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.5))' }}
               alt={`${product.name} - Image ${currentSlide + 1}`} 
             />
           </AnimatePresence>
@@ -141,7 +147,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Right Side: Data */}
-        <div className="p-6 sm:p-16 lg:p-24 flex flex-col justify-center relative z-20 -mt-10 lg:mt-0 bg-[#050505] lg:bg-transparent rounded-t-3xl pt-10">
+        <div className="p-6 sm:p-16 lg:p-24 flex flex-col justify-center relative z-20 mt-4 lg:mt-0 bg-[#050505] lg:bg-transparent">
           <div className="max-w-xl">
             <span className="text-spice-500 uppercase tracking-[0.3em] font-bold text-[10px] sm:text-xs mb-4 flex items-center">{product.category}</span>
             <h1 className="text-4xl sm:text-6xl font-bold font-[family-name:var(--font-outfit)] leading-none mb-6">{product.name}</h1>

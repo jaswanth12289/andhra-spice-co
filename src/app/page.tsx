@@ -86,10 +86,10 @@ export default function Home() {
 
           <motion.div 
             initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}
-            className="relative rounded-3xl overflow-hidden bg-black border border-white/5 shadow-2xl group"
+            className="relative rounded-3xl overflow-hidden bg-black border border-white/5 shadow-2xl group min-h-[300px]"
           >
+            <img src="https://images.unsplash.com/photo-1507048331197-7d4ac70811cf?w=800&q=80" alt="Homemade spices" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:scale-105 group-hover:opacity-70 transition-all duration-700" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent z-10" />
-            <img src="https://images.unsplash.com/photo-1507048331197-7d4ac70811cf?w=800&q=80" alt="Homemade spices" className="w-full h-full object-cover opacity-50 group-hover:scale-105 group-hover:opacity-70 transition-all duration-700" />
             <div className="absolute bottom-0 left-0 p-8 z-20 w-full">
               <div className="bg-white/10 backdrop-blur-md border border-white/20 w-12 h-12 rounded-full flex items-center justify-center mb-4 text-white group-hover:bg-white group-hover:text-black transition-colors shadow-lg">
                 <HomeIcon className="w-6 h-6" />
@@ -101,10 +101,10 @@ export default function Home() {
 
           <motion.div 
             initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }}
-            className="relative rounded-3xl overflow-hidden bg-black border border-white/5 shadow-2xl group"
+            className="relative rounded-3xl overflow-hidden bg-black border border-white/5 shadow-2xl group min-h-[300px]"
           >
+            <img src="https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=800&q=80" alt="Natural fresh spices" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:scale-105 group-hover:opacity-70 transition-all duration-700" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent z-10" />
-            <img src="https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=800&q=80" alt="Natural fresh spices" className="w-full h-full object-cover opacity-50 group-hover:scale-105 group-hover:opacity-70 transition-all duration-700" />
             <div className="absolute bottom-0 left-0 p-8 z-20 w-full">
               <div className="bg-spice-600/20 backdrop-blur-md border border-spice-500/30 w-12 h-12 rounded-full flex items-center justify-center mb-4 text-spice-400 group-hover:bg-spice-500 group-hover:text-white transition-colors shadow-lg">
                 <Leaf className="w-6 h-6" />
