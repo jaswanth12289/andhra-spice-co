@@ -350,10 +350,11 @@ export default function AdminOrders() {
                       <button 
                         type="button" 
                         onClick={() => handlePrintPackingSlip(order)}
-                        className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 rounded transition"
+                        style={{ backgroundColor: '#0d9488' }}
+                        className="w-full flex items-center justify-center gap-2 text-white font-bold py-2 rounded transition hover:opacity-90"
                       >
                         <Printer className="w-4 h-4" />
-                        Print Packing Slip
+                        🖨️ Print Packing Slip
                       </button>
                       <button 
                         type="button" 
