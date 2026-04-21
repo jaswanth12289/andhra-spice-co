@@ -305,18 +305,7 @@ export default function AdminOrders() {
                 </div>
 
                 <div>
-                  <h4 className="font-bold mb-3 border-b border-spice-100 pb-2 flex justify-between items-center">
-                    <span>Admin Controls</span>
-                    <button 
-                      type="button" 
-                      onClick={() => handlePrintPackingSlip(order)}
-                      className="inline-flex items-center space-x-1.5 bg-spice-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-spice-900 transition shadow-sm"
-                      title="Print Packing Slip (No Prices)"
-                    >
-                      <Printer className="w-3.5 h-3.5" />
-                      <span>Print Slip</span>
-                    </button>
-                  </h4>
+                  <h4 className="font-bold mb-3 border-b border-spice-100 pb-2">Admin Controls</h4>
                   <form onSubmit={(e) => handleUpdate(e, order.id)} className="space-y-4 bg-spice-50 dark:bg-black p-4 rounded-xl border border-spice-200 dark:border-spice-800">
                     <div>
                       <label className="block text-xs font-bold mb-1">Update Status</label>
@@ -357,7 +346,15 @@ export default function AdminOrders() {
                     {(order.orderStatus === 'Shipped' || order.trackingId) && (
                       <p className="text-xs text-orange-600 dark:text-orange-400 font-bold text-center">Saving will trigger an Email Notification to the customer.</p>
                     )}
-                    <div className="pt-4 mt-2 border-t border-spice-200 dark:border-spice-800">
+                    <div className="pt-4 mt-2 border-t border-spice-200 dark:border-spice-800 space-y-2">
+                      <button 
+                        type="button" 
+                        onClick={() => handlePrintPackingSlip(order)}
+                        className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 rounded transition"
+                      >
+                        <Printer className="w-4 h-4" />
+                        Print Packing Slip
+                      </button>
                       <button 
                         type="button" 
                         onClick={() => handleDelete(order.id)} 
