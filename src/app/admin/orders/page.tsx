@@ -27,19 +27,18 @@ export default function AdminOrders() {
 
   const fetchOrders = async (cursor?: string) => {
     try {
-      const url = cursor 
+      const url = cursor
         ? `/api/orders?limit=10&cursor=${encodeURIComponent(cursor)}`
         : `/api/orders?limit=10`;
-        
+
       const res = await fetch(url);
       const data = await res.json();
       const newOrders = Array.isArray(data) ? data : [];
-      
+
       if (newOrders.length < 10) setHasMore(false);
-      
+
       if (cursor) {
         setOrders(prev => {
-          // Prevent duplicates incase of strict mode double invocation
           const existingIds = new Set(prev.map(o => o.id));
           const uniqueNew = newOrders.filter(o => !existingIds.has(o.id));
           return [...prev, ...uniqueNew];
@@ -59,7 +58,7 @@ export default function AdminOrders() {
   const handleUpdate = async (e: React.FormEvent, orderId: string) => {
     e.preventDefault();
     setUpdatingId(orderId);
-    
+
     const formData = new FormData(e.target as HTMLFormElement);
     const data = Object.fromEntries(formData.entries());
 
@@ -73,7 +72,6 @@ export default function AdminOrders() {
       if (!res.ok) throw new Error(result.error);
 
       toast.success('Order status updated');
-      // Update locally to avoid wiping out pagination
       setOrders(orders.map(o => o.id === orderId ? { ...o, ...data } : o));
     } catch (error: any) {
       toast.error(error.message);
@@ -84,13 +82,13 @@ export default function AdminOrders() {
 
   const handleDelete = async (orderId: string) => {
     if (!confirm('Are you sure you want to permanently delete this order? This action cannot be undone.')) return;
-    
+
     setDeletingId(orderId);
     try {
       const res = await fetch(`/api/orders/${orderId}`, { method: 'DELETE' });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
-      
+
       toast.success('Order deleted successfully');
       setOrders(orders.filter(o => o.id !== orderId));
     } catch (error: any) {
@@ -101,8 +99,8 @@ export default function AdminOrders() {
   };
 
   const isUnpaidOnline = (order: any) => {
-    return order.paymentMethod === 'ONLINE' && 
-      order.paymentStatus !== 'Success' && 
+    return order.paymentMethod === 'ONLINE' &&
+      order.paymentStatus !== 'Success' &&
       order.paymentStatus !== 'Refunded' &&
       order.orderStatus !== 'Cancelled';
   };
@@ -112,26 +110,26 @@ export default function AdminOrders() {
 
     const headers = ['Order ID', 'Date', 'Customer Phone', 'Payment Mode', 'Payment Status', 'Order Status', 'Total Amount', 'Items'];
     const rows = orders.map(o => {
-      const itemsStr = o.products.map((p: any) => `${p.quantity}x ${p.name} (${p.weight})`).join('; ');
+      const itemsStr = o.products.map((p: any) => p.quantity + 'x ' + p.name + ' (' + p.weight + ')').join('; ');
       return [
         o.customOrderId,
-        `"${new Date(o.createdAt).toLocaleString()}"`,
-        `"${o.phoneNumber}"`,
+        '"' + new Date(o.createdAt).toLocaleString() + '"',
+        '"' + o.phoneNumber + '"',
         o.paymentMethod,
         o.paymentStatus,
         o.orderStatus,
         o.totalAmount,
-        `"${itemsStr}"`
+        '"' + itemsStr + '"'
       ].join(',');
     });
 
     const csvContent = [headers.join(','), ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    
+
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `AndhraSpice_Orders_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', 'AndhraSpice_Orders_' + new Date().toISOString().split('T')[0] + '.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -141,89 +139,44 @@ export default function AdminOrders() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Packing Slip - ${order.customOrderId}</title>
-          <style>
-            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; line-height: 1.5; color: #000; }
-            .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 30px; }
-            .title { font-size: 28px; font-weight: bold; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
-            .subtitle { font-size: 16px; text-transform: uppercase; margin-top: 8px; color: #444; font-weight: bold; }
-            .meta-info { margin-bottom: 30px; font-size: 16px; }
-            .meta-info strong { display: inline-block; width: 100px; }
-            .address-box { border: 2px solid #000; padding: 25px; margin-bottom: 40px; border-radius: 8px; }
-            .address-title { font-weight: bold; margin-bottom: 15px; font-size: 18px; text-transform: uppercase; border-bottom: 1px solid #ccc; padding-bottom: 5px; display: inline-block; }
-            .address-content { font-size: 20px; line-height: 1.6; }
-            .items-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; }
-            .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-            .items-table th, .items-table td { border: 1px solid #000; padding: 12px; text-align: left; font-size: 16px; }
-            .items-table th { background-color: #f0f0f0; font-weight: bold; text-transform: uppercase; }
-            .footer { margin-top: 50px; text-align: center; font-size: 14px; color: #555; border-top: 1px solid #ddd; padding-top: 20px; }
-            @media print {
-              body { padding: 0; margin: 0; -webkit-print-color-adjust: exact; }
-              @page { margin: 1cm; size: A4; }
-              .no-print { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1 class="title">Andhra Spice Co</h1>
-            <div class="subtitle">Packing Slip / Shipping Label</div>
-          </div>
-          
-          <div class="meta-info">
-            <div><strong>Order ID:</strong> ${order.customOrderId}</div>
-            <div><strong>Date:</strong> ${new Date(order.createdAt).toLocaleDateString()}</div>
-          </div>
+    const itemRows = order.products.map((p: any) =>
+      '<tr><td><strong>' + p.name + '</strong></td><td>' + (p.weight || 'Standard') + '</td><td>' + p.quantity + '</td></tr>'
+    ).join('');
 
-          <div class="address-box">
-            <div class="address-title">Ship To / Parcel Destination:</div>
-            <div class="address-content">
-              <strong>Customer Name:</strong> Andhra Spice Customer <br/>
-              <strong>Address:</strong> <br/>
-              ${order.shippingAddress.street}<br/>
-              ${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.zipCode}<br/>
-              <strong>Phone:</strong> ${order.phoneNumber}
-            </div>
-          </div>
+    const html = '<!DOCTYPE html><html><head><title>Packing Slip - ' + order.customOrderId + '</title>'
+      + '<style>'
+      + 'body{font-family:Arial,sans-serif;padding:30px;color:#000;}'
+      + '.header{text-align:center;border-bottom:3px solid #000;padding-bottom:16px;margin-bottom:24px;}'
+      + '.title{font-size:26px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;margin:0;}'
+      + '.subtitle{font-size:13px;text-transform:uppercase;color:#555;margin-top:6px;font-weight:bold;}'
+      + '.meta{margin-bottom:20px;font-size:14px;}'
+      + '.to-box{border:2px solid #000;border-radius:6px;padding:20px;margin-bottom:30px;}'
+      + '.to-label{font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#555;margin-bottom:8px;}'
+      + '.to-address{font-size:18px;line-height:1.7;}'
+      + 'table{width:100%;border-collapse:collapse;margin-top:8px;}'
+      + 'th,td{border:1px solid #000;padding:10px 12px;text-align:left;font-size:14px;}'
+      + 'th{background:#f0f0f0;font-weight:bold;text-transform:uppercase;font-size:12px;}'
+      + '.section-title{font-size:13px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}'
+      + '.footer{margin-top:40px;text-align:center;font-size:12px;color:#777;border-top:1px solid #ddd;padding-top:16px;}'
+      + '@media print{body{padding:0;margin:0;}@page{margin:1cm;size:A4;}}'
+      + '</style></head><body>'
+      + '<div class="header"><h1 class="title">Andhra Spice Co</h1><div class="subtitle">Packing Slip &mdash; No Prices</div></div>'
+      + '<div class="meta"><strong>Order ID:</strong> ' + order.customOrderId + '&nbsp;&nbsp;&nbsp;<strong>Date:</strong> ' + new Date(order.createdAt).toLocaleDateString('en-IN') + '</div>'
+      + '<div class="to-box">'
+      + '<div class="to-label">Ship To</div>'
+      + '<div class="to-address">'
+      + order.shippingAddress.street + '<br/>'
+      + order.shippingAddress.city + ', ' + order.shippingAddress.state + ' ' + order.shippingAddress.zipCode + '<br/>'
+      + '<strong>Ph:</strong> ' + order.phoneNumber
+      + '</div></div>'
+      + '<div class="section-title">Ordered Items</div>'
+      + '<table><thead><tr><th>Product</th><th>Weight / Variant</th><th>Qty</th></tr></thead>'
+      + '<tbody>' + itemRows + '</tbody></table>'
+      + '<div class="footer"><strong>Andhra Spice Co</strong> &mdash; Authentic Spices, Delivered with Care.</div>'
+      + '<scr' + 'ipt>window.onload=function(){setTimeout(function(){window.print();},400);}' + '<\/scr' + 'ipt>'
+      + '</body></html>';
 
-          <div class="items-section">
-            <div class="items-title">Ordered Items:</div>
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th>Product Name</th>
-                  <th>Weight/Variant</th>
-                  <th>Quantity</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${order.products.map((p: any) => \`
-                  <tr>
-                    <td><strong>\${p.name}</strong></td>
-                    <td>\${p.weight || 'Standard'}</td>
-                    <td>\${p.quantity}</td>
-                  </tr>
-                \`).join('')}
-              </tbody>
-            </table>
-          </div>
-
-          <div class="footer">
-            <strong>Andhra Spice Co</strong> - Authentic Spices Delivered.<br/>
-            Thank you for your order!
-          </div>
-          
-          <script>
-            window.onload = function() { 
-              setTimeout(function() { window.print(); }, 500);
-            }
-          </script>
-        </body>
-      </html>
-    \`);
+    printWindow.document.write(html);
     printWindow.document.close();
   };
 
@@ -234,7 +187,7 @@ export default function AdminOrders() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
         <h1 className="text-3xl font-bold font-outfit">Order Management</h1>
         <div className="flex space-x-3">
-          <button 
+          <button
             onClick={handleExportCSV}
             className="bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 px-4 py-2 rounded-xl font-bold transition flex items-center space-x-2 text-sm shadow"
           >
@@ -246,7 +199,7 @@ export default function AdminOrders() {
 
       {/* Operational Safety Banner */}
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 p-4 rounded-xl text-sm text-blue-800 dark:text-blue-300">
-        <h3 className="font-bold flex items-center mb-1"><ShieldCheck className="w-4 h-4 mr-2" /> Database Backup & Export Protocol</h3>
+        <h3 className="font-bold flex items-center mb-1"><ShieldCheck className="w-4 h-4 mr-2" /> Database Backup &amp; Export Protocol</h3>
         <p className="opacity-90 leading-relaxed">
           <strong>Daily Export:</strong> Use the button above to export visible orders locally to CSV format.<br/>
           <strong>Full Cloud Backup:</strong> To perform a complete structural database backup, navigate to the <a href="https://console.cloud.google.com/firestore/databases/-default-/export" target="_blank" className="underline font-bold">Google Cloud Console</a> &rarr; Firestore &rarr; Import/Export and schedule a bucket export.
@@ -276,8 +229,8 @@ export default function AdminOrders() {
                   <h3 className="text-xl font-bold font-outfit flex items-center space-x-3 flex-wrap gap-2">
                     <span className="bg-spice-100 dark:bg-black px-3 py-1 rounded font-mono text-lg">{order.customOrderId}</span>
                     <span className={`px-3 py-1 rounded text-sm font-bold ${
-                      order.orderStatus === 'Delivered' ? 'bg-green-100 text-green-700' : 
-                      order.orderStatus === 'Cancelled' ? 'bg-red-100 text-red-700' : 
+                      order.orderStatus === 'Delivered' ? 'bg-green-100 text-green-700' :
+                      order.orderStatus === 'Cancelled' ? 'bg-red-100 text-red-700' :
                       order.orderStatus === 'Payment Pending' ? 'bg-yellow-100 text-yellow-700' :
                       'bg-blue-100 text-blue-700'
                     }`}>{order.orderStatus}</span>
@@ -346,19 +299,20 @@ export default function AdminOrders() {
                     {(order.orderStatus === 'Shipped' || order.trackingId) && (
                       <p className="text-xs text-orange-600 dark:text-orange-400 font-bold text-center">Saving will trigger an Email Notification to the customer.</p>
                     )}
+
                     <div className="pt-4 mt-2 border-t border-spice-200 dark:border-spice-800 space-y-2">
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={() => handlePrintPackingSlip(order)}
                         style={{ backgroundColor: '#0d9488' }}
                         className="w-full flex items-center justify-center gap-2 text-white font-bold py-2 rounded transition hover:opacity-90"
                       >
                         <Printer className="w-4 h-4" />
-                        🖨️ Print Packing Slip
+                        Print Packing Slip
                       </button>
-                      <button 
-                        type="button" 
-                        onClick={() => handleDelete(order.id)} 
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(order.id)}
                         disabled={deletingId === order.id}
                         className="w-full flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400 font-bold py-2 rounded transition"
                       >
@@ -376,7 +330,7 @@ export default function AdminOrders() {
 
       {hasMore && orders.length > 0 && (
         <div className="flex justify-center mt-8">
-          <button 
+          <button
             onClick={() => {
               setLoadingMore(true);
               fetchOrders(orders[orders.length - 1].createdAt);
