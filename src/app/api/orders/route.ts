@@ -302,6 +302,7 @@ export async function GET(req: NextRequest) {
     const token = req.cookies.get('token')?.value;
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const payload = await verifyToken(token) as any;
+    if (!payload?.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     
     const ordersRef = collection(db, 'orders');
     let qArgs: any[] = [];

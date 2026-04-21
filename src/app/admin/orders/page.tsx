@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { CheckCircle, XCircle, Clock, RefreshCw, AlertTriangle, CreditCard, Trash2, Download, ShieldCheck } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, RefreshCw, AlertTriangle, CreditCard, Trash2, Download, ShieldCheck, Printer } from 'lucide-react';
 
 function PaymentBadge({ status, method }: { status: string; method: string }) {
   if (status === 'Success') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"><CheckCircle className="w-3 h-3 mr-1" />Paid</span>;
@@ -137,6 +137,96 @@ export default function AdminOrders() {
     document.body.removeChild(link);
   };
 
+  const handlePrintPackingSlip = (order: any) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Packing Slip - ${order.customOrderId}</title>
+          <style>
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; line-height: 1.5; color: #000; }
+            .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 30px; }
+            .title { font-size: 28px; font-weight: bold; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+            .subtitle { font-size: 16px; text-transform: uppercase; margin-top: 8px; color: #444; font-weight: bold; }
+            .meta-info { margin-bottom: 30px; font-size: 16px; }
+            .meta-info strong { display: inline-block; width: 100px; }
+            .address-box { border: 2px solid #000; padding: 25px; margin-bottom: 40px; border-radius: 8px; }
+            .address-title { font-weight: bold; margin-bottom: 15px; font-size: 18px; text-transform: uppercase; border-bottom: 1px solid #ccc; padding-bottom: 5px; display: inline-block; }
+            .address-content { font-size: 20px; line-height: 1.6; }
+            .items-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; }
+            .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+            .items-table th, .items-table td { border: 1px solid #000; padding: 12px; text-align: left; font-size: 16px; }
+            .items-table th { background-color: #f0f0f0; font-weight: bold; text-transform: uppercase; }
+            .footer { margin-top: 50px; text-align: center; font-size: 14px; color: #555; border-top: 1px solid #ddd; padding-top: 20px; }
+            @media print {
+              body { padding: 0; margin: 0; -webkit-print-color-adjust: exact; }
+              @page { margin: 1cm; size: A4; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1 class="title">Andhra Spice Co</h1>
+            <div class="subtitle">Packing Slip / Shipping Label</div>
+          </div>
+          
+          <div class="meta-info">
+            <div><strong>Order ID:</strong> ${order.customOrderId}</div>
+            <div><strong>Date:</strong> ${new Date(order.createdAt).toLocaleDateString()}</div>
+          </div>
+
+          <div class="address-box">
+            <div class="address-title">Ship To / Parcel Destination:</div>
+            <div class="address-content">
+              <strong>Customer Name:</strong> Andhra Spice Customer <br/>
+              <strong>Address:</strong> <br/>
+              ${order.shippingAddress.street}<br/>
+              ${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.zipCode}<br/>
+              <strong>Phone:</strong> ${order.phoneNumber}
+            </div>
+          </div>
+
+          <div class="items-section">
+            <div class="items-title">Ordered Items:</div>
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>Product Name</th>
+                  <th>Weight/Variant</th>
+                  <th>Quantity</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${order.products.map((p: any) => \`
+                  <tr>
+                    <td><strong>\${p.name}</strong></td>
+                    <td>\${p.weight || 'Standard'}</td>
+                    <td>\${p.quantity}</td>
+                  </tr>
+                \`).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="footer">
+            <strong>Andhra Spice Co</strong> - Authentic Spices Delivered.<br/>
+            Thank you for your order!
+          </div>
+          
+          <script>
+            window.onload = function() { 
+              setTimeout(function() { window.print(); }, 500);
+            }
+          </script>
+        </body>
+      </html>
+    \`);
+    printWindow.document.close();
+  };
+
   if (loading) return <div className="text-center py-20 font-bold animate-pulse text-xl">Loading Orders...</div>;
 
   return (
@@ -215,7 +305,18 @@ export default function AdminOrders() {
                 </div>
 
                 <div>
-                  <h4 className="font-bold mb-3 border-b border-spice-100 pb-2">Admin Controls</h4>
+                  <h4 className="font-bold mb-3 border-b border-spice-100 pb-2 flex justify-between items-center">
+                    <span>Admin Controls</span>
+                    <button 
+                      type="button" 
+                      onClick={() => handlePrintPackingSlip(order)}
+                      className="inline-flex items-center space-x-1.5 bg-spice-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-spice-900 transition shadow-sm"
+                      title="Print Packing Slip (No Prices)"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>Print Slip</span>
+                    </button>
+                  </h4>
                   <form onSubmit={(e) => handleUpdate(e, order.id)} className="space-y-4 bg-spice-50 dark:bg-black p-4 rounded-xl border border-spice-200 dark:border-spice-800">
                     <div>
                       <label className="block text-xs font-bold mb-1">Update Status</label>
