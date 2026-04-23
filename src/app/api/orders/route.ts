@@ -3,7 +3,7 @@ import { verifyToken } from '@/lib/auth';
 import { db } from '@/lib/firestore';
 import { collection, addDoc, getDocs, getDoc, doc, updateDoc, query, where, orderBy, runTransaction, limit, startAfter } from 'firebase/firestore';
 import { generateOrderId } from '@/lib/orderUtils';
-import { sendOrderConfirmation } from '@/lib/email';
+import { sendOrderConfirmation, sendAdminOrderNotification } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
   try {
@@ -143,6 +143,7 @@ export async function POST(req: NextRequest) {
       paymentStatus: paymentMethod === 'COD' ? 'Pending' : 'Awaiting',
       orderStatus: paymentMethod === 'COD' ? 'Placed' : 'Payment Pending',
       stockDeducted: paymentMethod === 'COD',
+      adminEmailSent: false,
       paymentAttempts: [{ event: 'ORDER_CREATED', timestamp: new Date().toISOString(), source: 'checkout' }],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -201,6 +202,14 @@ export async function POST(req: NextRequest) {
       } catch (emailErr) {
         console.error('COD email send failed:', emailErr);
       }
+      // Fire-and-forget admin notification with proper idempotency
+      sendAdminOrderNotification(newOrder)
+        .then(async () => {
+          await updateDoc(doc(db, 'orders', orderDocRef.id), { adminEmailSent: true });
+        })
+        .catch(err => {
+          console.error('Admin email failed (COD):', err);
+        });
     }
 
     if (paymentMethod === 'ONLINE') {

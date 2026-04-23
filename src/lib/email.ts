@@ -238,3 +238,69 @@ export async function sendCancellationEmail(email: string, order: any, user: any
   }
 }
 
+export async function sendAdminOrderNotification(order: any) {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  console.log(`[Email] Attempting to send admin notification for order ${order?.customOrderId || 'UNKNOWN'}`);
+
+  if (!adminEmail) {
+    console.error('[Email] ADMIN_EMAIL environment variable is not set. Skipping admin notification.');
+    return;
+  }
+
+  if (!order || !order.customOrderId) {
+    console.error('[Email] Cannot send admin notification: Invalid order data.');
+    return;
+  }
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; color: #220901; max-width: 600px; margin: auto;">
+      <div style="background-color: #dc2f02; padding: 20px; text-align: center; color: white;">
+        <h1>Andhra Spice Co. - New Order Received</h1>
+      </div>
+      <div style="padding: 20px; background-color: #fff8f0;">
+        <h2>Order ID: ${order.customOrderId}</h2>
+        <p><b>Customer Name:</b> ${order.customerName || 'N/A'}</p>
+        <p><b>Phone Number:</b> ${order.phoneNumber || 'N/A'}</p>
+        <p><b>Address:</b> ${order.shippingAddress?.street || ''}, ${order.shippingAddress?.city || ''}, ${order.shippingAddress?.state || ''} ${order.shippingAddress?.zipCode || ''}</p>
+        <h3>Items</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+          <thead>
+            <tr style="background-color: #fdb05e; color: #220901;">
+              <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Product</th>
+              <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Qty</th>
+              <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Price</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${order.products.map((p: any) => `
+              <tr>
+                <td style="padding: 8px; border: 1px solid #ddd;">${p.name || 'Product'}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">${p.quantity || 1}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">₹${p.price || 0}</td>
+              </tr>`).join('')}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2" style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">Total Amount</td>
+              <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: #d00000;">₹${order.totalAmount || 0}</td>
+            </tr>
+          </tfoot>
+        </table>
+        <p style="margin-top: 20px;">Payment Method: ${order.paymentMethod || 'N/A'}</p>
+      </div>
+    </div>`;
+
+  try {
+    const transporter = getTransporter();
+    const info = await transporter.sendMail({
+      from: `"Andhra Spice Co." <${process.env.SMTP_USER || 'noreply@andhraspiceco.com'}>`,
+      to: adminEmail,
+      subject: `New Order Received - ${order.customOrderId}`,
+      html,
+    });
+    console.log(`[Email] Admin notification sent for ${order.customOrderId}. Message ID: ${info.messageId}`);
+  } catch (error: any) {
+    console.error(`[Email] Failed to send admin notification for ${order.customOrderId}:`, error.message);
+  }
+}
+

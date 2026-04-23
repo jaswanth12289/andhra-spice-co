@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firestore';
 import { collection, doc, getDoc, getDocs, updateDoc, query, where } from 'firebase/firestore';
-import { sendOrderConfirmation } from '@/lib/email';
+import { sendOrderConfirmation, sendAdminOrderNotification } from '@/lib/email';
 
 export async function GET(req: NextRequest) {
   try {
@@ -92,6 +92,16 @@ export async function GET(req: NextRequest) {
                 console.error('Email send failed (verify):', emailErr);
               }
             }
+          }
+          // Fire-and-forget admin notification after successful payment verification
+          if (orderData.paymentStatus === 'Success' && !orderData.adminEmailSent) {
+            sendAdminOrderNotification({ ...orderData, customOrderId: dbOrderId })
+              .then(async () => {
+                await updateDoc(orderRef, { adminEmailSent: true });
+              })
+              .catch(err => {
+                console.error('Admin email failed (verify):', err);
+              });
           }
         } else if (cashfreeData.order_status !== 'ACTIVE') {
           // Only mark as failed if Cashfree definitively says not PAID and not ACTIVE
